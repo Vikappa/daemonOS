@@ -1,0 +1,10 @@
+/build/
+/.cache/
+/var/
+*.sqlite*
+*.bmp
+*.ppm
+/compile_commands.json
+/.agents/
+/.aws/
+/.codex/

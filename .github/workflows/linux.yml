@@ -1,0 +1,26 @@
+name: Linux Genesis
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        preset: [desktop, sanitize]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Configure (SDL compiled locally from pinned source)
+        run: cmake --preset ${{ matrix.preset }} -DDAEMON_SYSTEM_SDL=OFF
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }}
+      - name: Architecture boundaries
+        run: python3 tools/check_architecture.py
+      - name: GCC static analysis of portable core
+        if: matrix.preset == 'desktop'
+        run: |
+          cmake --preset core -DDAEMON_STATIC_ANALYSIS=ON
+          cmake --build --preset core --target daemon_core
+  # Hardware, Android, network endpoints and battery endurance are not CI claims.

@@ -1,0 +1,5 @@
+{
+  "speech": "A little spark, a little rest. I remember our walk.",
+  "emotion": "happy", "intensity": 0.6, "animation": "idle",
+  "actions": ["speak", "animate"]
+}

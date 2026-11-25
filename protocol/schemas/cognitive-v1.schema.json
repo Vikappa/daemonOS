@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Genesis bounded cognitive response",
+  "description": "Runtime also enforces a 2048-byte message and byte-based string limits; JSON Unicode escape decoding is not supported in Genesis.",
+  "type": "object", "additionalProperties": false,
+  "required": ["speech", "emotion", "intensity", "animation", "actions"],
+  "properties": {
+    "speech": {"type": "string", "maxLength": 511},
+    "emotion": {"enum": ["calm", "happy", "sad", "curious"]},
+    "intensity": {"type": "number", "minimum": 0, "maximum": 1},
+    "animation": {"enum": ["idle", "sleep", "happy"]},
+    "actions": {"type": "array", "maxItems": 4, "uniqueItems": true,
+      "items": {"enum": ["speak", "animate", "remember"]}}
+  }
+}

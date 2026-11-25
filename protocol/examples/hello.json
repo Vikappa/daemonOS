@@ -1,0 +1,5 @@
+{
+  "v": 1, "session": "pending-authentication", "id": "request-001",
+  "type": "hello", "seq": 0, "final": true,
+  "payload": {"versions": [{"major": 1, "minor": 0}], "capabilities": ["inference.proxy", "audio.stt", "audio.tts"], "max_message_bytes": 4096, "authenticated": false}
+}
