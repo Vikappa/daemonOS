@@ -1,0 +1,10 @@
+{
+  "id": "morning-briefing",
+  "instruction": "Cerca le notizie e raccontami i risultati con le fonti.",
+  "execute_at": 1795672800,
+  "expires_at": 1795673700,
+  "allowed_tools": [
+    "web.search"
+  ],
+  "wake_on_complete": true
+}

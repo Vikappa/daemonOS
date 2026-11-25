@@ -113,3 +113,19 @@ labels every assumed current and separates them from physical measurements.
 
 Source and original assets use [MIT](LICENSE); dependencies retain their
 [upstream licenses and pinned versions](docs/dependencies.md).
+
+## Assistant, expressions and voice directory
+
+Integrated with the Habitat runtime: sarcastic Italian default personality, durable
+notes/reminders, scheduled agent workflows and provider-neutral bridge interfaces,
+approved LCD cat masks, activity faces and playback-driven mouth animation. The
+shared watch view is used by both desktop and firmware; it stops rendering asleep.
+
+The local voice directory has owner/authorized/guest roles and timestamped recurring
+guest encounters. Familiarity never grants permissions. Voice-only sessions cannot
+read private history or approve messages. Tool/task actors and owner approvals are
+checked again before execution. Real audio encoding, local authentication, template
+encryption/key storage, APK mappings and enrollment/approval UI remain integrations.
+See [voice directory](docs/architecture/voice-directory.md),
+[agent workflows](docs/architecture/agent-tasks.md) and
+[activity faces](docs/adr/0007-operational-faces-and-speech.md).

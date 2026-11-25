@@ -49,8 +49,8 @@ lv_obj_t* WatchView::button(lv_obj_t* parent, const char* caption, const char* i
     return object;
 }
 void WatchView::draw_sprite(lv_event_t* event) {
-    constexpr auto width = static_cast<int>(ember_width);
-    constexpr auto height = static_cast<int>(ember_height);
+    constexpr auto width = static_cast<int>(presentation::ember_width);
+    constexpr auto height = static_cast<int>(presentation::ember_height);
     const auto& pixels = static_cast<const WatchView*>(lv_event_get_user_data(event))->sprite_pixels_;
     auto* object = lv_event_get_current_target_obj(event);
     auto* layer = lv_event_get_layer(event);
@@ -78,8 +78,8 @@ void WatchView::place_sprite(lv_obj_t* parent, AppId app) {
     constexpr int padding = 10;
     const bool close_up = app == AppId::creature;
     const int cell = close_up ? 12 : 6;
-    const int width = static_cast<int>(ember_width) * cell;
-    const int height = static_cast<int>(ember_height) * cell;
+    const int width = static_cast<int>(presentation::ember_width) * cell;
+    const int height = static_cast<int>(presentation::ember_height) * cell;
     const int x = (close_up ? 205 : 300) - width / 2;
     const int y = (close_up ? 194 : 250) - height / 2;
     panel(parent, x - padding, y - padding, width + 2 * padding, height + 2 * padding, lcd_green);
@@ -90,13 +90,23 @@ void WatchView::place_sprite(lv_obj_t* parent, AppId app) {
     lv_obj_set_size(sprite_, width, height);
     lv_obj_add_event_cb(sprite_, draw_sprite, LV_EVENT_DRAW_MAIN, this);
 }
+void WatchView::update_sprite(std::uint32_t real_ms) {
+    const auto face = controller_.state().face;
+    const bool blink = face < CreatureFace::installing_services && face != CreatureFace::resting && face != CreatureFace::happy &&
+                       real_ms % 3700 >= 3570;
+    const bool animated=face==CreatureFace::installing_services || face==CreatureFace::connecting || face==CreatureFace::waiting_response;
+    const presentation::EmberFrame frame{face,blink,controller_.state().mouth,animated ? static_cast<std::uint8_t>((real_ms/180)%4) : std::uint8_t{0}};
+    if (frame == last_frame_) return;
+    presentation::paint_face(sprite_pixels_, frame);
+    lv_obj_invalidate(sprite_);
+    last_frame_ = frame;
+}
 void WatchView::build() {
     lv_display_set_default(display_);
     auto* root = lv_display_get_screen_active(display_); lv_obj_clean(root);
     binding_count_ = 0; watch_root_=root;
     time_label_=battery_label_=status_label_=message_label_=sprite_=clock_label_=date_label_=setting_label_=nullptr;
-    last_frame_.reset();
-    bars_.fill(nullptr); values_.fill(nullptr);
+    bars_.fill(nullptr); values_.fill(nullptr); last_frame_.reset();
     lv_obj_set_style_bg_color(root,lv_color_hex(0x000000),0); lv_obj_remove_flag(root,LV_OBJ_FLAG_SCROLLABLE);
     time_label_=label(root,"00:00",22,15,white,&lv_font_montserrat_12);
     label(root,"D / OS",166,15,orange,&lv_font_montserrat_12);
@@ -108,7 +118,7 @@ void WatchView::build() {
         label(root,"A SMALL FIRE.",24,67,white,&lv_font_montserrat_28);
         label(root,"A WORLD WITHIN.",24,101,orange,&lv_font_montserrat_28);
         label(root,"YOUR OFFLINE DIGITAL FAMILIAR",24,147,muted,&lv_font_montserrat_12);
-        place_sprite(root, app);
+        place_sprite(root,app);
         label(root,state.creature.name.c_str(),26,213,white,&lv_font_montserrat_20);
         label(root,"Identity held locally.\nInstincts always awake.",26,245,muted);
         auto* enter=button(root,"Meet familiar   >","open_creature",24,338,362,52,{EventType::open_app,3});
@@ -119,7 +129,7 @@ void WatchView::build() {
     } else if (app == AppId::creature) {
         label(root,state.creature.name.c_str(),22,57,white,&lv_font_montserrat_28);
         status_label_=label(root,"AWAKE / FAMILIAR 001",22,94,green,&lv_font_montserrat_12);
-        place_sprite(root, app);
+        place_sprite(root,app);
         message_label_=label(root,"",22,280,white,&lv_font_montserrat_12); lv_obj_set_size(message_label_,366,32);
         constexpr std::array names{"SATIETY","ENERGY","AFFECTION","SPIRIT"};
         for (std::size_t i=0;i<4;++i) {
@@ -161,30 +171,14 @@ void WatchView::update(std::uint32_t real_ms) {
     if (!dirty_ && state.revision==last_revision_ && static_cast<std::int32_t>(real_ms-next_update_)<0) return;
     if (state.app != last_app_) build();
     last_revision_=state.revision; dirty_=false;
-    next_update_ = real_ms + 1000U;
-    if (sprite_) {
-        constexpr std::uint32_t blink_period_ms = 3700;
-        constexpr std::uint32_t blink_start_ms = 3570;
-        const bool can_blink = state.face != CreatureFace::resting && state.face != CreatureFace::happy;
-        const auto phase = real_ms % blink_period_ms;
-        const bool blink = can_blink && phase >= blink_start_ms;
-        const EmberFrame frame{state.face, blink};
-        if (frame != last_frame_) {
-            paint_face(sprite_pixels_, frame);
-            lv_obj_invalidate(sprite_);
-            last_frame_ = frame;
-        }
-        if (can_blink) {
-            const auto until_blink_edge = (blink ? blink_period_ms : blink_start_ms) - phase;
-            next_update_ = real_ms + std::min(1000U, until_blink_edge);
-        }
-    }
+    next_update_=real_ms + (state.creature.sleeping || state.app==AppId::clock || state.app==AppId::settings ? 1000U : 90U);
+    if(sprite_) update_sprite(real_ms);
     const auto epoch=static_cast<std::time_t>(state.wall_seconds); std::tm calendar{}; if (const auto* utc=std::gmtime(&epoch)) calendar=*utc;
     char buffer[512]{}; std::strftime(buffer,sizeof(buffer),"%H:%M UTC",&calendar); text(time_label_,buffer);
     std::snprintf(buffer,sizeof(buffer),"%s %d%%",state.environment.charging ? "+" : "",state.environment.battery); text(battery_label_,buffer);
     std::strftime(buffer,sizeof(buffer),"%H:%M:%S",&calendar); text(clock_label_,buffer);
     std::strftime(buffer,sizeof(buffer),"%a, %d %b %Y",&calendar); text(date_label_,buffer);
-    text(status_label_,state.creature.sleeping ? "RESTING / INNER FIRE" : "AWAKE / FAMILIAR 001");
+    text(status_label_,state.speaking ? "Sto parlando" : face_label(state.face).data());
     if (message_label_) {
         if (last_app_ == AppId::clock) {
             std::snprintf(buffer,sizeof(buffer),"Lifetime: %lld hours\nTimezone: UTC",static_cast<long long>(state.creature.age_seconds/3600)); text(message_label_,buffer);

@@ -54,3 +54,11 @@ set identity, permissions, filesystem paths or SQL.
 
 See [verification](../verification.md), [hardware matrix](../hardware/compatibility-matrix.md)
 and [the parametric energy model](../architecture/energy-budget.md).
+
+## Integrated assistant extension
+
+Durable tools/agent workflows, provider-neutral service catalog, approved LCD masks
+and operational faces, playback mouth motion and the local voice directory are
+implemented on Habitat's resource and shared-view architecture. These do not make
+the real inference/audio/Android/authentication adapters or physical watch complete.
+See architecture/voice-directory.md and architecture/agent-tasks.md.

@@ -1,0 +1,13 @@
+{
+  "id": "task-1-1-0",
+  "success": true,
+  "detail": "Search completed",
+  "data": "Synthetic result used for an integration example.",
+  "sources": [
+    {
+      "title": "Example source",
+      "url": "https://example.test/news"
+    }
+  ],
+  "error": "none"
+}

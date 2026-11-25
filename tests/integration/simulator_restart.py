@@ -10,7 +10,7 @@ import tempfile
 binary = str(pathlib.Path(sys.argv[1]).resolve())
 with tempfile.TemporaryDirectory(prefix="daemonos-ui-") as directory:
     root = pathlib.Path(directory)
-    def run(name, epoch, commands, frames=240, backup=False, device="device"):
+    def run(name, epoch, commands, frames=240, backup=False, device="device", delay=0):
         script = root / f"{name}.script"
         script.write_text(commands)
         report = root / f"{name}.json"
@@ -20,6 +20,8 @@ with tempfile.TemporaryDirectory(prefix="daemonos-ui-") as directory:
                 "--script", str(script), "--report", str(report), "--screenshot", str(screenshot)]
         if backup:
             args += ["--backup", str(root / "export.sqlite")]
+        if delay:
+            args += ["--mock-delay-ms", str(delay)]
         completed = subprocess.run(args, capture_output=True, text=True, timeout=20)
         assert completed.returncode == 0, completed.stdout + completed.stderr
         image = screenshot.read_bytes()
@@ -67,16 +69,16 @@ click wake
 """, frames=100)
     assert fault["id"] == first["id"]
     with sqlite3.connect(root / "device/sd/creature.sqlite") as db:
-        assert db.execute("pragma user_version").fetchone()[0] == 2
+        assert db.execute("pragma user_version").fetchone()[0] == 5
         assert db.execute("select count(*) from memories").fetchone()[0] >= 5
     # A damaged card recovers only the independently stored minimal identity.
     (root / "device/sd/creature.sqlite").write_bytes(b"corrupt card")
     recovered = run("recovered", 1700046802, "click open_creature\n", frames=40)
     assert recovered["id"] == first["id"], recovered
 
-    def face_pixels(name, commands, box):
+    def face_pixels(name, commands, box, frames=80, delay=0):
         # Fresh devices and equal frame counts keep the face outside its blink window.
-        run(name, 1700000000, commands, frames=80, device=name)
+        run(name, 1700000000, commands, frames=frames, device=name, delay=delay)
         bmp = (root / f"{name}.bmp").read_bytes()
         offset = struct.unpack_from("<I", bmp, 10)[0]
         width, height = struct.unpack_from("<ii", bmp, 18)
@@ -108,4 +110,25 @@ click wake
     launcher_box = (216, 193, 389, 308)
     home = face_pixels("home-calm", "", launcher_box)
     assert face_pixels("home-happy", meet + "click pet\nclick home\n", launcher_box) != home
+    states = {}
+    for name, activity in [("installing_services", "install"), ("phone_offline", "phone_offline"),
+                           ("inference_unreachable", "inference_offline"), ("internal_error", "error"),
+                           ("connecting", "phone_connecting"), ("listening", "listen")]:
+        states[name] = face_pixels(name, meet + f"activity {activity}\n", creature_box)
+        report = json.loads((root / f"{name}.json").read_text())
+        assert report["face"] == name, report
+    states["waiting_response"] = face_pixels("waiting_response", meet + "click network\nclick think\n", creature_box, delay=5000)
+    waiting = json.loads((root / "waiting_response.json").read_text())
+    assert waiting["thinking"] and waiting["face"] == "waiting_response", waiting
+    assert len(set(states.values())) == 7, "Every requested activity must have a distinct face"
+    talking_a = face_pixels("talk-a", meet + "activity speak\n", creature_box, frames=80)
+    talking_b = face_pixels("talk-b", meet + "activity speak\n", creature_box, frames=88)
+    assert talking_a != talking_b, "Playback must animate the mouth"
+    row_bytes = (creature_box[2] - creature_box[0]) * 4
+    for y in range(creature_box[1], creature_box[3]):
+        if not 230 <= y < 254:
+            offset = (y - creature_box[1]) * row_bytes
+            assert talking_a[offset:offset + row_bytes] == talking_b[offset:offset + row_bytes], "Talking must not move the head or eyes"
+    assert face_pixels("talk-stopped", meet + "activity speak\nactivity stop_speak\n", creature_box) == calm
+    assert not json.loads((root / "talk-stopped.json").read_text())["speaking"]
 print("PASS: SDL/LVGL navigation, face rendering, mock streaming, restart, export and storage recovery")

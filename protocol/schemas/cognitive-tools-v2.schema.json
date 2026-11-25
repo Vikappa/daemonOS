@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DaemonOS legacy deferred-tool response v2",
+  "description": "Runtime enforces 2048 UTF-8 bytes total, byte-based string bounds, two tool calls, configured capabilities and time horizon. Literal UTF-8 is supported; JSON Unicode escapes remain unsupported.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "speech",
+    "emotion",
+    "intensity",
+    "animation",
+    "actions",
+    "tool_calls"
+  ],
+  "properties": {
+    "speech": {
+      "type": "string",
+      "maxLength": 511
+    },
+    "emotion": {
+      "enum": [
+        "calm",
+        "happy",
+        "sad",
+        "curious"
+      ]
+    },
+    "intensity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "animation": {
+      "enum": [
+        "idle",
+        "sleep",
+        "happy"
+      ]
+    },
+    "actions": {
+      "type": "array",
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "speak",
+          "animate",
+          "remember"
+        ]
+      }
+    },
+    "tool_calls": {
+      "type": "array",
+      "maxItems": 2,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "execute_at",
+              "expires_at",
+              "arguments"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+              },
+              "name": {
+                "const": "save_note"
+              },
+              "execute_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9223372036854775807
+              },
+              "expires_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9223372036854775807
+              },
+              "arguments": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "execute_at",
+              "expires_at",
+              "arguments"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+              },
+              "name": {
+                "const": "set_reminder"
+              },
+              "execute_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9223372036854775807
+              },
+              "expires_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9223372036854775807
+              },
+              "arguments": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "at"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "at": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "execute_at",
+              "expires_at",
+              "arguments"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+              },
+              "name": {
+                "const": "set_alarm"
+              },
+              "execute_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9223372036854775807
+              },
+              "expires_at": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9223372036854775807
+              },
+              "arguments": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "at"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "at": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "execute_at",
+              "expires_at",
+              "arguments"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+              },
+              "name": {
+                "const": "send_message"
+              },
+              "execute_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9223372036854775807
+              },
+              "expires_at": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9223372036854775807
+              },
+              "arguments": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text",
+                  "recipient"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "recipient": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.:-]{1,63}$"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

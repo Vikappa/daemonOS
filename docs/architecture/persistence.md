@@ -18,6 +18,18 @@ event/intention/knowledge/settings entities and retrieval indexes. Only state,
 settings and memory APIs are exercised in Genesis; the other tables reserve a
 documented schema for later services. Each migration is transactional and recorded
 in `schema_migrations`. A newer schema is rejected without overwriting it.
+Migration 3 adds bounded `assistant_entries` and `tool_jobs` tables. Explicit
+notes/reminders are separate from model-proposed autobiographical memories.
+Tool batches enqueue transactionally; local entry creation and job success
+commit together. Jobs and results survive restart and consistent export. They
+are not part of the identity checkpoint. No destructive migration is performed;
+older runtimes correctly reject this newer schema. See ADR 0005.
+Migration 4 adds `agent_tasks`, service bindings/arguments/results and task/job
+links. It transactionally rebuilds the name-constrained jobs table while copying
+every v3 row and preserving its IDs/state/results before discarding the temporary
+old table. Task advancement and child-job enqueue are atomic; final notices and
+unread state survive restart/export. Neither tasks nor tool history are in the
+minimal flash checkpoint. See ADR 0006 and the migration preservation test.
 `PRAGMA quick_check(1)` runs at open; it detects structural corruption, not all
 logical inconsistencies or filesystem failures.
 
@@ -96,6 +108,17 @@ Sources: [SQLite locking](https://www.sqlite.org/lockingv3.html),
 [SQLite corruption modes](https://www.sqlite.org/howtocorrupt.html),
 [ESP-IDF FatFS VFS](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/storage/fatfs.html).
 
+## Voice directory migration (schema v5)
+
+Adds voice_profiles, sealed voice_templates, timestamped voice_encounters and actor
+fields for memories, assistant entries, jobs and agent tasks. Owner bootstrap
+transactionally adopts legacy empty actor IDs. It never fabricates encounters.
+Message approvals now require an unlocked owner's persisted ID/revision before
+dispatch; legacy confirmations do not satisfy this check. No existing records are
+deleted by migration. Voice sessions and unlock proofs never persist. Templates
+are sealed by an injected platform protector; no raw audio is saved.
+Identity tables belong to the SQLite backup, not the minimal creature checkpoint.
+An unreadable directory closes privileged operations during checkpoint recovery.
 ## Habitat embedded readiness and memory caps
 
 The desktop simulator gives SQLite a fixed 1 MiB memsys5 arena from its budgeted

@@ -1,0 +1,5 @@
+#pragma once
+#include <string_view>
+namespace daemonos {
+inline constexpr std::string_view agent_profile = R"DAEMON_AGENT(@DAEMON_AGENT_PROFILE@)DAEMON_AGENT";
+}

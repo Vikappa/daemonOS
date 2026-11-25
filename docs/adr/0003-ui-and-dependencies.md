@@ -1,6 +1,8 @@
 # ADR 0003: one LVGL context, two SDL displays, pinned local dependencies
 
 Status: accepted, 2026-11-25.
+The original resource-sprite decision below is superseded by ADR 0007 compiled
+LCD masks; display/dependency choices remain applicable.
 
 Use LVGL 9.2.2 and SDL2 2.30.0. A small custom SDL adapter implements the portable
 display/touch contracts; this avoids coupling application logic to LVGL's SDL

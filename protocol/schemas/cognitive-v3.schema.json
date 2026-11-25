@@ -1,0 +1,1248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DaemonOS integrated cognitive response and deferred tools",
+  "description": "Legacy tool response or Habitat v2 response with optional bounded tool_calls. Model proposals remain subject to local authorization.",
+  "$defs": {
+    "tool_call": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "save_note"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "set_reminder"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "at"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "at": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "set_phone_alarm"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "at"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "at": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "message.send"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "recipient"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "recipient": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{1,63}$"
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "schedule_agent_task"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "at"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "at": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "web.search"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "email.send"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "recipient",
+                "subject"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "recipient": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{1,63}$"
+                },
+                "subject": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 95
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "email.search"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "email.read"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reference"
+              ],
+              "properties": {
+                "reference": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{1,95}$"
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "notification.reply"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "reference"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "reference": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{1,95}$"
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "set_alarm"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "at"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "at": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "send_message"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "recipient"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "recipient": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{1,63}$"
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "service_call": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "set_phone_alarm"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "at"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "at": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "message.send"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "recipient"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "recipient": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{1,63}$"
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "web.search"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "email.send"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "recipient",
+                "subject"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "recipient": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{1,63}$"
+                },
+                "subject": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 95
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "email.search"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "email.read"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reference"
+              ],
+              "properties": {
+                "reference": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{1,95}$"
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "execute_at",
+            "expires_at",
+            "arguments"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+            },
+            "name": {
+              "const": "notification.reply"
+            },
+            "execute_at": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "expires_at": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "reference"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "reference": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{1,95}$"
+                },
+                "binding": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{0,31}$"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "title": "D\u00e6monOS cognitive response v3: scheduled agent tasks and service bindings",
+      "description": "Runtime enforces a 4096-byte UTF-8 response, byte-based string bounds, at most two calls, local capability policy and scheduling horizon. Literal UTF-8 is accepted; Unicode escapes are not decoded.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "speech",
+        "emotion",
+        "intensity",
+        "animation",
+        "actions",
+        "tool_calls"
+      ],
+      "properties": {
+        "speech": {
+          "type": "string",
+          "maxLength": 511
+        },
+        "emotion": {
+          "enum": [
+            "calm",
+            "happy",
+            "sad",
+            "curious"
+          ]
+        },
+        "intensity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "animation": {
+          "enum": [
+            "idle",
+            "sleep",
+            "happy"
+          ]
+        },
+        "actions": {
+          "type": "array",
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "speak",
+              "animate",
+              "remember"
+            ]
+          }
+        },
+        "tool_calls": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/tool_call"
+          }
+        }
+      }
+    },
+    {
+      "title": "Awakening response v2",
+      "description": "Runtime additionally enforces 2048 UTF-8 bytes, byte-based strings, known capabilities and unique personality traits. Speech may be null; raw UTF-8 is supported, Unicode escape sequences are rejected by the bounded decoder.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v",
+        "speech",
+        "emotion",
+        "intensity",
+        "facial_expression",
+        "animation",
+        "voice",
+        "actions",
+        "memory_candidates",
+        "personality_adjustments",
+        "intentions"
+      ],
+      "properties": {
+        "v": {
+          "const": 2
+        },
+        "speech": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 511
+            }
+          ]
+        },
+        "emotion": {
+          "enum": [
+            "calm",
+            "happy",
+            "sad",
+            "curious"
+          ]
+        },
+        "intensity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "facial_expression": {
+          "enum": [
+            "neutral",
+            "smile",
+            "sleepy",
+            "concerned"
+          ]
+        },
+        "animation": {
+          "enum": [
+            "idle",
+            "sleep",
+            "happy"
+          ]
+        },
+        "voice": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "rate",
+                "pitch",
+                "volume"
+              ],
+              "properties": {
+                "rate": {
+                  "type": "number",
+                  "minimum": 0.5,
+                  "maximum": 2
+                },
+                "pitch": {
+                  "type": "number",
+                  "minimum": 0.5,
+                  "maximum": 2
+                },
+                "volume": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          ]
+        },
+        "actions": {
+          "type": "array",
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "speak",
+              "animate",
+              "remember",
+              "propose_personality",
+              "propose_intention"
+            ]
+          }
+        },
+        "memory_candidates": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "content",
+              "importance",
+              "valence"
+            ],
+            "properties": {
+              "content": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 191
+              },
+              "importance": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "valence": {
+                "type": "number",
+                "minimum": -1,
+                "maximum": 1
+              }
+            }
+          }
+        },
+        "personality_adjustments": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "trait",
+              "delta"
+            ],
+            "properties": {
+              "trait": {
+                "enum": [
+                  "curiosity",
+                  "sociability",
+                  "resilience"
+                ]
+              },
+              "delta": {
+                "type": "number",
+                "minimum": -0.05,
+                "maximum": 0.05
+              }
+            }
+          }
+        },
+        "intentions": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "description",
+              "after_seconds"
+            ],
+            "properties": {
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 95
+              },
+              "after_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 604800
+              }
+            }
+          }
+        },
+        "tool_calls": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/tool_call"
+          }
+        }
+      }
+    }
+  ]
+}

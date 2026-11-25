@@ -1,6 +1,7 @@
 #pragma once
 #include "daemon/framework/application.hpp"
 #include "daemon/services/store.hpp"
+#include "daemon/services/assistant.hpp"
 #include <optional>
 #include <span>
 
@@ -20,6 +21,8 @@ struct CognitiveResponse {
     double intensity{};
     std::array<Capability, 4> actions{};
     std::size_t action_count{};
+    std::array<ToolCall, budget::tool_calls> tool_calls{};
+    std::size_t tool_count{};
     Text<24> facial_expression{std::string_view{"neutral"}};
     VoiceParameters voice{};
     std::array<MemoryCandidate,2> memory_candidates{};
@@ -45,7 +48,11 @@ private: StateStore& store_;
 };
 class ContextBuilder {
 public:
-    Status build(const CreatureState& state, const MemoryPage& memories,const AgentConfiguration& agent={},const Environment& environment={},Event trigger={EventType::think});
+    Status build(const CreatureState& state, const MemoryPage& memories, std::string_view user_input = {}, ToolPolicy tools = {},
+                 const ToolPage& results = {}, std::span<const ServiceBinding> bindings = {}, const AgentTask* task = nullptr,const SpeakerContext* speaker = nullptr,const AgentConfiguration& agent = {},const Environment& environment = {});
+    Status build(const CreatureState& state,const MemoryPage& memories,const AgentConfiguration& agent,const Environment& environment={},Event trigger={EventType::think}) {
+        (void)trigger; return build(state,memories,{}, {}, {}, {}, nullptr,nullptr,agent,environment);
+    }
     std::string_view context() const { return {buffer_.data(), size_}; }
 private:
     std::array<char, budget::context_bytes> buffer_{};
@@ -56,6 +63,7 @@ struct InferenceProvider {
     virtual Status start(std::string_view context, std::uint32_t max_tokens) = 0;
     virtual Status poll(std::span<char> chunk, std::size_t& size, bool& done) = 0;
     virtual void cancel() = 0;
+    virtual InferencePhase phase() const { return InferencePhase::waiting_response; }
 };
 class MockProvider final : public InferenceProvider {
 public:
@@ -64,18 +72,18 @@ public:
     void cancel() override { active_ = false; }
 private: std::size_t offset_{}; bool active_{};
 };
-struct CognitiveBudget { std::int64_t interval_ms{60'000}; std::int64_t timeout_ms{10'000}; std::uint32_t max_tokens{256}; };
+struct CognitiveBudget { std::int64_t interval_ms{60'000}; std::int64_t timeout_ms{10'000}; std::uint32_t max_tokens{512}; };
 class CognitiveScheduler {
 public:
     explicit CognitiveScheduler(CognitiveBudget budget = {}) : budget_(budget) {}
-    Status begin(std::int64_t now, const Environment& environment, bool enabled);
+    Status begin(std::int64_t now, const Environment& environment, bool enabled, bool task_continuation = false);
     bool timed_out(std::int64_t now) const;
     void complete(std::int64_t now, bool success);
     bool active() const { return active_; }
     const CognitiveBudget& limits() const { return budget_; }
 private:
     CognitiveBudget budget_{};
-    std::int64_t started_{}, next_{};
+    std::int64_t started_{}, next_{}, completed_{};
     unsigned failures_{};
     bool active_{};
 };

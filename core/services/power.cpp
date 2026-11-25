@@ -5,7 +5,7 @@ namespace daemonos {
 PowerManager::PowerManager() {
     services_ = {{
         {Text<24>{"display"},mask(Resource::display),1000},
-        {Text<24>{"audio"},mask(Resource::audio)|mask(Resource::cpu),120'000},
+        {Text<24>{"audio"},mask(Resource::audio)|mask(Resource::cpu),300'000},
         {Text<24>{"bluetooth"},mask(Resource::bluetooth),120'000},
         {Text<24>{"wifi"},mask(Resource::wifi),30'000},
         {Text<24>{"storage"},mask(Resource::storage)|mask(Resource::cpu),30'000},

@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Bridge execution result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "success",
+    "detail",
+    "data",
+    "sources",
+    "error"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "detail": {
+      "type": "string",
+      "maxLength": 191
+    },
+    "data": {
+      "type": "string",
+      "maxLength": 767
+    },
+    "sources": {
+      "type": "array",
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "url"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 63
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 191,
+            "pattern": "^https?://[^\\s]+$"
+          }
+        }
+      }
+    },
+    "error": {
+      "enum": [
+        "none",
+        "unavailable",
+        "denied",
+        "not_found",
+        "unsupported",
+        "timeout",
+        "rate_limited",
+        "unknown"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "success": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "error": {
+            "const": "none"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "speech": "Va bene capo, preparo il promemoria. Il reparto memoria ringrazia.",
+  "emotion": "happy",
+  "intensity": 0.5,
+  "animation": "idle",
+  "actions": [
+    "speak"
+  ],
+  "tool_calls": [
+    {
+      "id": "reminder-0001",
+      "name": "set_reminder",
+      "execute_at": 0,
+      "expires_at": 0,
+      "arguments": {
+        "text": "Controllare il riso",
+        "at": 1795618800
+      }
+    }
+  ]
+}

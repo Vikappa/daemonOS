@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Authenticated bridge service catalog v1",
+  "description": "Capabilities must additionally be enabled by local watch policy. Bindings identify configured adapters/accounts, never executable packages or credentials.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bindings"
+  ],
+  "properties": {
+    "bindings": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "operations"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.:-]{1,31}$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          },
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "set_phone_alarm",
+                "message.send",
+                "web.search",
+                "email.send",
+                "email.search",
+                "email.read",
+                "notification.reply"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

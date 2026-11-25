@@ -1,8 +1,7 @@
 #pragma once
 #include "daemon/framework/runtime.hpp"
-#include "daemon/presentation/ember_sprite.hpp"
-#include <optional>
 #include <lvgl.h>
+#include "ember_sprite.hpp"
 
 namespace daemonos::presentation {
 struct WatchState {
@@ -10,16 +9,18 @@ struct WatchState {
     const Environment& environment;
     const Settings& settings;
     AppId app;
-    CreatureFace face;
     bool awake;
     std::string_view message;
     std::int64_t wall_seconds;
     std::uint64_t revision;
+    CreatureFace face;
+    MouthPose mouth;
+    bool speaking;
 };
 class WatchController {
 public:
     WatchController(Runtime& runtime,hal::Clock& clock) : runtime_(runtime),clock_(clock) {}
-    WatchState state() const { return {runtime_.creature(),runtime_.environment(),runtime_.settings(),runtime_.app(),runtime_.face(),runtime_.display_awake(),runtime_.message(),clock_.wall_seconds(),runtime_.view_revision()}; }
+    WatchState state() const { return {runtime_.creature(),runtime_.environment(),runtime_.settings(),runtime_.app(),runtime_.display_awake(),runtime_.message(),clock_.wall_seconds(),runtime_.view_revision(),runtime_.face(),runtime_.mouth(),runtime_.speaking()}; }
     void activate(std::string_view id,Event event) {
         if (id=="brightness_down") event.value=runtime_.settings().brightness-10;
         if (id=="brightness_up") event.value=runtime_.settings().brightness+10;
@@ -42,12 +43,13 @@ private:
     lv_obj_t* label(lv_obj_t*,const char*,int,int,std::uint32_t,const lv_font_t* = &lv_font_montserrat_14);
     lv_obj_t* panel(lv_obj_t*,int,int,int,int,std::uint32_t);
     void build();
-    void place_sprite(lv_obj_t* parent, AppId app);
     static void draw_sprite(lv_event_t* event);
-    WatchController& controller_;
-    lv_display_t* display_{};
+    void place_sprite(lv_obj_t* parent,AppId app);
+    void update_sprite(std::uint32_t real_ms);
     EmberPixels sprite_pixels_{};
     std::optional<EmberFrame> last_frame_{};
+    WatchController& controller_;
+    lv_display_t* display_{};
     std::array<Binding,24> bindings_{};
     std::size_t binding_count_{};
     AppId last_app_{static_cast<AppId>(255)};

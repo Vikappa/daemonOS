@@ -84,3 +84,13 @@ runtime/view. Touch is delivered on events, not a continuously polled timer.
 The lab alone samples diagnostic text at 2 Hz. Its displayed memory is a resource
 reservation model, not host RSS or measured device consumption. Speech controls
 simulate a power consumer; they do not claim a working audio pipeline.
+
+## LCD activity expressions
+
+The shared watch view renders the approved cat faces, activity phases and speech
+mouth poses. `--mock-delay-ms 0..9000` simulates provider response latency. Script
+commands `activity install`, `installed`, `phone_offline`, `phone_connecting`,
+`phone_ready`, `inference_offline`, `inference_connecting`, `inference_ready`,
+`error`, `clear_error`, `listen`, `stop_listen`, `speak`, `voice`, `silence`, and
+`stop_speak` inject correlated device events. These are lab hints, not real audio
+or network adapters. Ordinary model speech text never starts mouth playback.

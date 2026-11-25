@@ -199,7 +199,7 @@ void sqlite_migrations_and_corruption() {
     Temp temp; auto state=initial(); Settings settings;
     const auto path=temp.path/"version.sqlite";
     { desktop::SqliteStore store(path); CHECK(store.save(state,settings)); }
-    raw_sql(path,"DROP INDEX memories_recent; DROP INDEX memories_importance; DELETE FROM schema_migrations WHERE version=2; PRAGMA user_version=1;");
+    raw_sql(path,"DROP INDEX memories_actor; DROP INDEX entries_actor; DROP INDEX tools_actor; ALTER TABLE memories DROP COLUMN actor_id; ALTER TABLE assistant_entries DROP COLUMN actor_id; ALTER TABLE tool_jobs DROP COLUMN actor_id; ALTER TABLE tool_jobs DROP COLUMN approved_by; ALTER TABLE tool_jobs DROP COLUMN approval_revision; ALTER TABLE agent_tasks DROP COLUMN actor_id; DROP TABLE voice_encounters; DROP TABLE voice_templates; DROP TABLE voice_profiles; DELETE FROM settings WHERE key='voice_guest_tracking'; DELETE FROM schema_migrations WHERE version=5; DROP INDEX memories_recent; DROP INDEX memories_importance; DROP TABLE assistant_entries; DROP TABLE tool_jobs; DROP TABLE agent_tasks; DELETE FROM schema_migrations WHERE version>=2; PRAGMA user_version=1;");
     { desktop::SqliteStore store(path); CHECK(store.load(state,settings)); CHECK(store.integrity()); }
     raw_sql(path,"PRAGMA user_version=999;");
     { desktop::SqliteStore store(path); CHECK(store.load(state,settings).code==Error::incompatible); CHECK(!store.save(state,settings)); }
@@ -255,10 +255,10 @@ void runtime_cognition_cancel_and_complete() {
     runtime.post({EventType::connectivity,1}); runtime.post({EventType::think}); runtime.tick(); CHECK(runtime.thinking());
     CHECK(runtime.face() == CreatureFace::thinking);
     runtime.post({EventType::connectivity,0}); runtime.tick(); CHECK(!runtime.thinking());
-    CHECK(runtime.face() == CreatureFace::calm);
+    CHECK(runtime.face() == CreatureFace::inference_unreachable);
     clock.advance(120'000); runtime.post({EventType::connectivity,1}); runtime.post({EventType::think}); runtime.tick(); CHECK(runtime.thinking());
     for (int i=0;i<20;++i) { clock.advance(10); runtime.tick(); }
-    CHECK(!runtime.thinking()); CHECK(runtime.message().starts_with("I am still here")); CHECK(valid(runtime.creature()));
+    CHECK(!runtime.thinking()); CHECK(runtime.message().starts_with("Sono qui, capo.")); CHECK(valid(runtime.creature()));
     CHECK(runtime.face() == CreatureFace::happy);
     clock.advance(2500); runtime.tick(); CHECK(runtime.face() == CreatureFace::calm);
 }

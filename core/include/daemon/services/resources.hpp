@@ -8,7 +8,7 @@ enum class MemoryPool : std::uint8_t { internal, external, count };
 enum class MemoryCategory : std::uint8_t { runtime, graphics, audio, assets, database, cognitive, count };
 struct MemoryBudget {
     std::array<std::size_t, 2> pools{128 * 1024, 6 * 1024 * 1024};
-    std::array<std::size_t, 6> categories{64 * 1024, 768 * 1024, 64 * 1024, 128 * 1024, 192 * 1024, 32 * 1024};
+    std::array<std::size_t, 6> categories{96 * 1024, 768 * 1024, 64 * 1024, 128 * 1024, 192 * 1024, 32 * 1024};
 };
 struct MemoryAllocator {
     virtual ~MemoryAllocator() = default;

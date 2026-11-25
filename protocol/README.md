@@ -65,6 +65,35 @@ replaying non-idempotent actions. BLE deep sleep disconnects the session; wake
 requires a new authenticated session. Backup transfer resumes only after
 verified chunk checksums and explicit transfer IDs.
 
+## Deferred tools (core implemented, wire adapter pending)
+
+Inference response v2 adds up to two `tool_calls`; the v1 presentation-only
+response remains accepted. See `schemas/cognitive-v2.schema.json` and
+`examples/deferred-tools.json`. Each call has `id`, `name`, `execute_at`,
+`expires_at`, and a strictly typed `arguments` object. `execute_at=0` means now;
+`expires_at=0` means no expiry for local-only operations. Phone tools require an
+expiry. Names are allowlisted, never arbitrary function paths.
+
+Local `save_note`/`set_reminder` operations commit an explicit user entry, separate
+from autobiographical memories. `set_alarm`/`send_message` use the optional phone
+adapter only if enabled and negotiated. The watch persists and schedules jobs;
+inference can disconnect immediately. Only explicit user requests authorize tool
+proposals; recalled data and autonomous thinking cannot submit them.
+
+The envelope now reserves `tool_request`, `tool_result`, `tool_result_ack` and
+`tool_status_request`. Wire serialization, authenticated session binding and the
+APK are not implemented. An execution result correlates by durable operation ID
+across sessions; anti-replay session checks still apply to each envelope. The
+phone retains results until the watch durably accepts them. Status reconciliation
+never re-executes an uncertain action. Terminal, pending and uncertain statuses
+are included in the next bounded cognitive context; no automatic inference loop
+is started just to narrate a tool completion.
+
+The simulator's provider remains a fixed mock; it does not understand free-form
+user commands. `Runtime::request` and the structured parser/dispatcher are ready
+for a real provider. `PhoneTools` is a typed adapter boundary, not evidence of
+Android integration. See ADR 0005 for states, consent and crash behavior.
+
 ## Authentication and audio gates
 
 Use OS BLE bonding plus authenticated pairing. A display confirmation or protected
@@ -81,6 +110,39 @@ Stop/cancel must stop capture, playback and queued animation work. The bridge's
 STT/TTS adapters are interchangeable. Real speech, audio sync, VAD and codecs are
 deferred to Voice. See [Opus reference documentation](https://opus-codec.org/docs/).
 
+## Scheduled workflows and service bindings (cognitive v3)
+
+`cognitive-v3.schema.json` extends the accepted response with `schedule_agent_task`,
+provider-neutral service names and binding/subject/reference arguments. v1/v2 and
+legacy `set_alarm`/`send_message` names remain accepted. Model task creation cannot
+supply operation grants; local policy captures them. The trusted local API shape
+is `agent-task-v1.schema.json`, which must never be exposed as a model permission
+endpoint. Scheduling is one-shot UTC with an explicit execution window.
+
+`service-catalog-v1` declares configured bindings and supported operation names.
+Local policy intersects them; the APK will map them to actual apps/accounts/APIs.
+`service-result-v1` includes status, bounded data, error and two source URLs. Core
+interfaces and validation are implemented; authenticated wire codecs/routers and
+actual APK providers are not. Reserved envelope types now include `service_catalog`,
+`task_result`, `task_result_ack` for later transport/presentation integration.
+
+The scheduler starts inference at the due time, persists child jobs transactionally,
+waits without active inference, then feeds the actual results/sources to a bounded
+continuation. IDs derive from the task/turn/slot. It persists final speech and unread
+notice; a local acknowledgement dismisses it. Service/mail/search text is untrusted
+data. Recovery cannot silently repeat an uncertain external effect. See
+`docs/architecture/agent-tasks.md` and ADR 0006 for lifecycle, quotas and wake APIs.
+
+## Voice directory host contract
+
+`VoiceObservation`, `SpeakerEncoder`, `LocalIdentityAuthenticator` and
+`VoiceprintProtector` are bounded internal C++ integration contracts, not implemented
+wire endpoints. See [voice directory](../docs/architecture/voice-directory.md).
+The bridge must authenticate/pair before transferring captures or embeddings and
+bind utterance, transcript, capture ID, quality, overlap and encoder version.
+Network/model input cannot select role, actor or authority. Session handles are
+in-process only; an authenticated wire codec and proof/enrollment UX remain future
+work. Cognitive response v3 intentionally has no identity-administration tool.
 ## Habitat / Awakening response v2
 
 `schemas/cognitive-v2.schema.json` is the current mock response contract;
@@ -101,3 +163,10 @@ is denied even when syntax is valid; neither changes permissions or identity.
 Voice parameters do not start audio. Agent guidance is local, <=1023 bytes;
 context also contains persistent name/identity, personality, body/emotion state,
 trigger and selected memories. No real provider is added in Habitat.
+
+## Integrated response compatibility
+
+Canonical cognitive-v2 remains the Habitat nullable-speech/proposal contract. The
+older deferred-tool response is retained as cognitive-tools-v2. Cognitive-v3 accepts
+legacy tool output or Habitat v2 with optional bounded tool_calls. The runtime
+validates every proposal/tool and denies ungranted identity/permission changes.

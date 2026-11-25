@@ -116,6 +116,9 @@ void awakening_contract() {
         std::string{silent}.replace(silent.find("null"),4,std::string{"\""}+char(0xff)+"\"")}) {
         parser.reset(); CHECK(parser.append(malformed)); CHECK(!parser.finish(response));
     }
+    std::string combined{silent}; combined.pop_back();
+    combined+=R"(,"tool_calls":[{"id":"v2-note","name":"save_note","execute_at":0,"expires_at":0,"arguments":{"text":"Integrated contract"}}]})";
+    parser.reset(); CHECK(parser.append(combined)); CHECK(parser.finish(response)); CHECK(response.schema_version==2); CHECK(response.tool_count==1);
     test::Clock clock; test::Random random; auto state=CreatureEngine::create(clock,random);
     ContextBuilder context; MemoryPage page; AgentConfiguration agent; agent.instructions.assign("LOCAL CUSTOM AGENT");
     CHECK(context.build(state,page,agent)); CHECK(context.context().find("LOCAL CUSTOM AGENT")!=std::string_view::npos);

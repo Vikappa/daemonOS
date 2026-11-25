@@ -1,0 +1,28 @@
+{
+  "bindings": [
+    {
+      "id": "search.primary",
+      "label": "Configured search provider",
+      "operations": [
+        "web.search"
+      ]
+    },
+    {
+      "id": "mail.personal",
+      "label": "Personal mail account",
+      "operations": [
+        "email.search",
+        "email.read",
+        "email.send"
+      ]
+    },
+    {
+      "id": "chat.personal",
+      "label": "Configured messaging adapter",
+      "operations": [
+        "message.send",
+        "notification.reply"
+      ]
+    }
+  ]
+}

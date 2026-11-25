@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Local trusted scheduler API v1",
+  "description": "This is not a model tool. Watch policy supplies allowed_tools; the model cannot grant capabilities.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "instruction",
+    "execute_at",
+    "expires_at",
+    "allowed_tools",
+    "wake_on_complete"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,39}$"
+    },
+    "instruction": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 383
+    },
+    "execute_at": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "expires_at": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "allowed_tools": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "save_note",
+          "set_reminder",
+          "set_phone_alarm",
+          "message.send",
+          "web.search",
+          "email.send",
+          "email.search",
+          "email.read",
+          "notification.reply"
+        ]
+      }
+    },
+    "wake_on_complete": {
+      "type": "boolean"
+    }
+  }
+}

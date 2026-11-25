@@ -3,15 +3,69 @@
   "title": "Daemon Link v1 envelope (proposal)",
   "type": "object",
   "additionalProperties": false,
-  "required": ["v", "session", "id", "type", "seq", "final", "payload"],
+  "required": [
+    "v",
+    "session",
+    "id",
+    "type",
+    "seq",
+    "final",
+    "payload"
+  ],
   "properties": {
-    "v": {"const": 1},
-    "session": {"type": "string", "minLength": 1, "maxLength": 64},
-    "id": {"type": "string", "minLength": 1, "maxLength": 64},
-    "reply_to": {"type": "string", "minLength": 1, "maxLength": 64},
-    "type": {"enum": ["hello", "hello_ack", "error", "event", "command", "inference_request", "inference_chunk", "audio_start", "audio_chunk", "audio_end", "cancel", "backup_request", "backup_chunk", "ack"]},
-    "seq": {"type": "integer", "minimum": 0, "maximum": 65535},
-    "final": {"type": "boolean"},
-    "payload": {"type": "object"}
+    "v": {
+      "const": 1
+    },
+    "session": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "reply_to": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "type": {
+      "enum": [
+        "hello",
+        "hello_ack",
+        "error",
+        "event",
+        "command",
+        "inference_request",
+        "inference_chunk",
+        "audio_start",
+        "audio_chunk",
+        "audio_end",
+        "cancel",
+        "backup_request",
+        "backup_chunk",
+        "ack",
+        "tool_request",
+        "tool_result",
+        "tool_result_ack",
+        "tool_status_request",
+        "service_catalog",
+        "task_result",
+        "task_result_ack"
+      ]
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    },
+    "final": {
+      "type": "boolean"
+    },
+    "payload": {
+      "type": "object"
+    }
   }
 }

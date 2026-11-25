@@ -6,6 +6,11 @@ int main() {
         << "Event " << sizeof(Event) << "\nEventBus " << sizeof(EventBus)
         << "\nCreatureState " << sizeof(CreatureState) << "\nMemory " << sizeof(Memory)
         << "\nMemoryPage " << sizeof(MemoryPage) << "\nRuntime " << sizeof(Runtime)
+        << "\nAssistantEntry " << sizeof(AssistantEntry) << "\nAssistantPage " << sizeof(AssistantPage)
+        << "\nToolCall " << sizeof(ToolCall) << "\nToolPage " << sizeof(ToolPage)
+        << "\nVoiceDirectory " << sizeof(VoiceDirectory) << "\nVoiceProfile " << sizeof(VoiceProfile)
+        << "\nVoiceObservation " << sizeof(VoiceObservation) << "\nVoiceTemplate " << sizeof(VoiceTemplate)
+        << "\nSpeechMotion " << sizeof(SpeechMotion)
         << "\nContextBuilder " << sizeof(ContextBuilder) << "\nResponseParser " << sizeof(ResponseParser)
         << "\nScheduler " << sizeof(Scheduler) << '\n';
 }

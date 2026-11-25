@@ -14,6 +14,7 @@ struct Options {
     std::string agent{DAEMON_DEFAULT_AGENT};
     bool headless{};
     std::uint32_t frames{};
+    std::int64_t mock_delay_ms{};
     std::optional<std::int64_t> epoch;
     std::optional<std::uint32_t> seed;
 };
@@ -31,9 +32,10 @@ Options options(int argc, char** argv) {
                 "daemon_sim [--data-dir PATH] [--headless] [--frames N] [--epoch UNIX]\n"
                 "           [--seed N] [--script PATH] [--screenshot PATH.bmp]\n"
                 "           [--debug-screenshot PATH.bmp] [--report PATH.json] [--backup PATH.sqlite]\n"
+                "           [--mock-delay-ms 0..9000]\n"
                 "           [--agent PATH.md] [--name NAME]\n"
                 "Headless mode uses deterministic 16 ms ticks and SDL's dummy driver.\n"
-                "Scripts: click TARGET, advance SECONDS, wall EPOCH, wait FRAMES.\n";
+                "Scripts: click TARGET, advance SECONDS, wall EPOCH, wait FRAMES, activity STATE.\n";
             std::exit(0);
         }
         if (arg=="--headless") { o.headless=true; continue; }
@@ -44,6 +46,7 @@ Options options(int argc, char** argv) {
         else if (arg=="--epoch") { o.epoch=number<std::int64_t>(value); if (*o.epoch < 0 || *o.epoch > 4'102'444'800LL) throw std::runtime_error("Epoch outside 1970-2100"); }
         else if (arg=="--seed") o.seed=number<std::uint32_t>(value);
         else if (arg=="--script") o.script=value;
+        else if(arg=="--mock-delay-ms") { o.mock_delay_ms=number<std::int64_t>(value); if(o.mock_delay_ms<0 || o.mock_delay_ms>9000) throw std::runtime_error("Mock delay outside 0..9000 ms"); }
         else if (arg=="--screenshot") o.screenshot=value;
         else if (arg=="--debug-screenshot") o.debug_screenshot=value;
         else if (arg=="--report") o.report=value;
@@ -57,6 +60,18 @@ Options options(int argc, char** argv) {
     return o;
 }
 struct ScriptCommand { std::string name; std::string value; };
+struct SimulatorProvider final : InferenceProvider {
+    hal::Clock& clock; std::int64_t delay{}, ready{}; MockProvider mock;
+    SimulatorProvider(hal::Clock& value,std::int64_t milliseconds) : clock(value),delay(milliseconds) {}
+    Status start(std::string_view context,std::uint32_t tokens) override {
+        ready=clock.monotonic_ms()+delay; return mock.start(context,tokens);
+    }
+    Status poll(std::span<char> chunk,std::size_t& size,bool& done) override {
+        if(clock.monotonic_ms()<ready) { size=0; done=false; return {}; }
+        return mock.poll(chunk,size,done);
+    }
+    void cancel() override { mock.cancel(); }
+};
 std::vector<ScriptCommand> script(const std::string& path) {
     std::vector<ScriptCommand> result;
     if (path.empty()) return result;
@@ -77,6 +92,27 @@ void mouse(daemonos::simulator::SdlDisplay& display,int x,int y,bool down) {
     event.button.x=x; event.button.y=y;
     if (SDL_PushEvent(&event)<0) throw std::runtime_error(SDL_GetError());
 }
+Event activity(std::string_view name) {
+    if(name=="install") return {EventType::services_install,1};
+    if(name=="installed") return {EventType::services_install,0};
+    if(name=="phone_offline") return {EventType::phone_link,0};
+    if(name=="phone_connecting") return {EventType::phone_link,1};
+    if(name=="phone_ready") return {EventType::phone_link,2};
+    if(name=="phone_auto") return {EventType::phone_link,-1};
+    if(name=="inference_offline") return {EventType::inference_link,0};
+    if(name=="inference_connecting") return {EventType::inference_link,1};
+    if(name=="inference_ready") return {EventType::inference_link,2};
+    if(name=="inference_auto") return {EventType::inference_link,-1};
+    if(name=="error") return {EventType::internal_fault,1};
+    if(name=="clear_error") return {EventType::internal_fault,0};
+    if(name=="listen") return {EventType::listen_start,10'000,42};
+    if(name=="stop_listen") return {EventType::listen_stop,0,42};
+    if(name=="speak") return {EventType::speech_start,10'000,42};
+    if(name=="voice") return {EventType::speech_level,80,42};
+    if(name=="silence") return {EventType::speech_level,0,42};
+    if(name=="stop_speak") return {EventType::speech_stop,0,42};
+    throw std::runtime_error("Unknown activity state");
+}
 void report(const Options& o, const Runtime& r, std::size_t frames, std::size_t clicks,std::size_t asleep_flushes) {
     if (o.report.empty()) return;
     std::ofstream output(o.report);
@@ -89,7 +125,10 @@ void report(const Options& o, const Runtime& r, std::size_t frames, std::size_t 
         << ",\n\"charging\":" << (r.environment().charging ? "true" : "false")
         << ",\n\"connected\":" << (r.environment().connected ? "true" : "false")
         << ",\n\"thinking\":" << (r.thinking() ? "true" : "false")
-        << ",\n\"mock_reply\":" << (r.message().starts_with("I am still here") ? "true" : "false")
+        << ",\n\"face\":\"" << face_name(r.face()) << "\",\n\"mouth\":" << static_cast<unsigned>(r.mouth())
+        << ",\n\"speaking\":" << (r.speaking() ? "true" : "false")
+        << ",\n\"listening\":" << (r.listening() ? "true" : "false")
+        << ",\n\"mock_reply\":" << (r.message().starts_with("Sono qui, capo.") ? "true" : "false")
         << ",\n\"power\":\"" << power_name(r.power()) << "\",\n\"rendered_frames\":" << frames
         << ",\n\"mouse_clicks\":" << clicks
         << ",\n\"asleep_flushes\":" << asleep_flushes
@@ -122,8 +161,9 @@ int main(int argc,char** argv) {
         desktop::Random random=o.seed ? desktop::Random{*o.seed} : desktop::Random{};
         desktop::SqliteStore store(o.data/"sd"/"creature.sqlite");
         desktop::FileCheckpoint checkpoint(o.data/"flash"/"identity.checkpoint");
-        MockProvider provider;
-        Runtime runtime(clock,random,store,checkpoint,provider,&resources);
+        SimulatorProvider provider(clock,o.mock_delay_ms);
+        VoiceDirectory identities(clock,random,store);
+        Runtime runtime(clock,random,store,checkpoint,provider,&identities,&resources);
         auto status=runtime.boot(); if (!status) throw std::runtime_error("Boot: "+std::string{status.message.view()});
         if (!o.name.empty() && !runtime.name(o.name)) throw std::runtime_error("Invalid familiar name");
         if (!o.agent.empty()) {
@@ -158,6 +198,9 @@ int main(int argc,char** argv) {
                     clock.set_wall(epoch);
                 }
                 else if (command.name=="wait") next_command=frame+number<std::uint32_t>(command.value);
+                else if(command.name=="activity") {
+                    if(!runtime.post(activity(command.value))) throw std::runtime_error("Activity event queue full");
+                }
                 else throw std::runtime_error("Unknown script command");
             }
             SDL_Event event{};

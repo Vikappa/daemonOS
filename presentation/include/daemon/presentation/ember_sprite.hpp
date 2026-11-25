@@ -5,6 +5,8 @@ namespace daemonos::presentation {
 struct EmberFrame {
     CreatureFace face;
     bool blink;
+    MouthPose mouth{MouthPose::expression};
+    std::uint8_t phase{};
     bool operator==(const EmberFrame&) const = default;
 };
 
