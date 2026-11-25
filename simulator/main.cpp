@@ -10,7 +10,8 @@ namespace {
 using namespace daemonos;
 struct Options {
     std::filesystem::path data{"var/simulator"};
-    std::string script, screenshot, debug_screenshot, report, backup;
+    std::string script, screenshot, debug_screenshot, report, backup,name;
+    std::string agent{DAEMON_DEFAULT_AGENT};
     bool headless{};
     std::uint32_t frames{};
     std::optional<std::int64_t> epoch;
@@ -26,10 +27,11 @@ Options options(int argc, char** argv) {
     for (int i=1;i<argc;++i) {
         const std::string_view arg{argv[i]};
         if (arg=="--help") {
-            std::cout << "DaeMON OS Genesis v0.1.0\n"
+            std::cout << "DaeMON OS Habitat v0.2.0\n"
                 "daemon_sim [--data-dir PATH] [--headless] [--frames N] [--epoch UNIX]\n"
                 "           [--seed N] [--script PATH] [--screenshot PATH.bmp]\n"
                 "           [--debug-screenshot PATH.bmp] [--report PATH.json] [--backup PATH.sqlite]\n"
+                "           [--agent PATH.md] [--name NAME]\n"
                 "Headless mode uses deterministic 16 ms ticks and SDL's dummy driver.\n"
                 "Scripts: click TARGET, advance SECONDS, wall EPOCH, wait FRAMES.\n";
             std::exit(0);
@@ -46,6 +48,8 @@ Options options(int argc, char** argv) {
         else if (arg=="--debug-screenshot") o.debug_screenshot=value;
         else if (arg=="--report") o.report=value;
         else if (arg=="--backup") o.backup=value;
+        else if (arg=="--agent") o.agent=value;
+        else if (arg=="--name") o.name=value;
         else throw std::runtime_error("Unknown argument: "+std::string{arg});
     }
     if (o.headless && o.frames==0) o.frames=120;
@@ -73,11 +77,11 @@ void mouse(daemonos::simulator::SdlDisplay& display,int x,int y,bool down) {
     event.button.x=x; event.button.y=y;
     if (SDL_PushEvent(&event)<0) throw std::runtime_error(SDL_GetError());
 }
-void report(const Options& o, const Runtime& r, std::size_t frames, std::size_t clicks) {
+void report(const Options& o, const Runtime& r, std::size_t frames, std::size_t clicks,std::size_t asleep_flushes) {
     if (o.report.empty()) return;
     std::ofstream output(o.report);
     const auto& s=r.creature();
-    output << "{\n\"id\":\"" << s.id.c_str() << "\",\n\"age_seconds\":" << s.age_seconds
+    output << "{\n\"id\":\"" << s.id.c_str() << "\",\n\"name\":\""<<s.name.c_str()<<"\",\n\"age_seconds\":" << s.age_seconds
         << ",\n\"revision\":" << s.revision << ",\n\"hunger\":" << s.needs.hunger << ",\n\"energy\":" << s.needs.energy
         << ",\n\"sleeping\":" << (s.sleeping ? "true" : "false")
         << ",\n\"app\":" << static_cast<int>(r.app()) << ",\n\"steps\":" << r.environment().steps
@@ -87,7 +91,14 @@ void report(const Options& o, const Runtime& r, std::size_t frames, std::size_t 
         << ",\n\"thinking\":" << (r.thinking() ? "true" : "false")
         << ",\n\"mock_reply\":" << (r.message().starts_with("I am still here") ? "true" : "false")
         << ",\n\"power\":\"" << power_name(r.power()) << "\",\n\"rendered_frames\":" << frames
-        << ",\n\"mouse_clicks\":" << clicks << "\n}\n";
+        << ",\n\"mouse_clicks\":" << clicks
+        << ",\n\"asleep_flushes\":" << asleep_flushes
+        << ",\n\"simulation_updates\":" << r.simulation_updates()
+        << ",\n\"wake_locks\":" << r.power_manager().active_locks()
+        << ",\n\"last_sleep_ms\":" << r.last_sleep_ms()
+        << ",\n\"memory_peak_external\":" << r.resources().peak(MemoryPool::external)
+        << ",\n\"cognitive_bytes\":" << r.resources().used(MemoryCategory::cognitive)
+        << ",\n\"queue_peak\":" << r.event_queue_peak() << "\n}\n";
     if (!output) throw std::runtime_error("Cannot write simulator report");
 }
 }
@@ -97,6 +108,14 @@ int main(int argc,char** argv) {
         if (o.headless) { SDL_setenv("SDL_VIDEODRIVER","dummy",1); SDL_setenv("SDL_AUDIODRIVER","dummy",1); }
         if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_EVENTS)!=0) throw std::runtime_error(SDL_GetError());
         struct SdlGuard { ~SdlGuard() { SDL_Quit(); } } sdl_guard;
+        desktop::Allocator allocator;
+        MemoryBudget limits; limits.categories[static_cast<std::size_t>(MemoryCategory::database)]=1024*1024;
+        ResourceManager resources(limits,&allocator);
+        auto task_memory=resources.reserve(MemoryCategory::runtime,MemoryPool::internal,32*1024);
+        auto graphics=resources.reserve(MemoryCategory::graphics,MemoryPool::external,512*1024);
+        auto database_heap=resources.allocate(MemoryCategory::database,MemoryPool::external,1024*1024);
+        if (!task_memory || !graphics || !database_heap || !desktop::SqliteStore::configure_heap(database_heap.data(),database_heap.bytes().size())) throw std::runtime_error("cannot establish bounded desktop memory arenas");
+        struct SqliteGuard { ~SqliteGuard() { (void)desktop::SqliteStore::shutdown(); } } sqlite_guard;
         lv_init(); struct LvGuard { ~LvGuard() { lv_deinit(); } } lv_guard;
         const auto system_epoch=std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         desktop::VirtualClock clock(o.epoch.value_or(system_epoch)); if (o.headless) clock.speed(0);
@@ -104,14 +123,22 @@ int main(int argc,char** argv) {
         desktop::SqliteStore store(o.data/"sd"/"creature.sqlite");
         desktop::FileCheckpoint checkpoint(o.data/"flash"/"identity.checkpoint");
         MockProvider provider;
-        Runtime runtime(clock,random,store,checkpoint,provider);
+        Runtime runtime(clock,random,store,checkpoint,provider,&resources);
         auto status=runtime.boot(); if (!status) throw std::runtime_error("Boot: "+std::string{status.message.view()});
-        simulator::SdlDisplay watch("DaemonOS / T-Watch Ultra / 410 x 502",410,502,60,80,o.headless);
-        simulator::SdlDisplay debug("DaemonOS / Genesis Lab",460,670,500,80,o.headless);
+        if (!o.name.empty() && !runtime.name(o.name)) throw std::runtime_error("Invalid familiar name");
+        if (!o.agent.empty()) {
+            std::ifstream file(o.agent,std::ios::binary); std::array<char,1024> instructions{};
+            if (!file) throw std::runtime_error("Cannot read agent.md");
+            file.read(instructions.data(),instructions.size());
+            const auto bytes=static_cast<std::size_t>(file.gcount());
+            if (file.bad() || !runtime.configure_agent({instructions.data(),bytes})) throw std::runtime_error("Invalid or oversized agent.md");
+        }
+        simulator::SdlDisplay watch("DaemonOS / T-Watch Ultra / 410 x 502",410,502,60,80,o.headless,&resources);
+        simulator::SdlDisplay debug("DaemonOS / Habitat Lab",460,960,500,40,o.headless,&resources);
         simulator::Ui ui(runtime,clock,watch,debug);
-        std::cout << "{\"event\":\"boot\",\"version\":\"0.1.0\",\"sqlite\":\"" << desktop::SqliteStore::version() << "\",\"identity\":\"" << runtime.creature().id.c_str() << "\"}\n";
+        std::cout << "{\"event\":\"boot\",\"version\":\"0.2.0\",\"sqlite\":\"" << desktop::SqliteStore::version() << "\",\"identity\":\"" << runtime.creature().id.c_str() << "\"}\n";
         bool running=true; std::uint32_t frame=0; auto previous=SDL_GetTicks();
-        std::size_t command_index=0, clicks=0;
+        std::size_t command_index=0, clicks=0,asleep_flushes=0;
         std::uint32_t next_command=6, release_at=0;
         simulator::SdlDisplay* pressed=nullptr; int pressed_x=0,pressed_y=0;
         while (running && (o.frames==0 || frame<o.frames)) {
@@ -142,20 +169,25 @@ int main(int argc,char** argv) {
                     else if (event.key.keysym.sym==SDLK_SPACE) runtime.post({EventType::wake});
                 }
                 watch.event(event); debug.event(event);
+                if (event.type==SDL_MOUSEBUTTONDOWN || event.type==SDL_MOUSEBUTTONUP || event.type==SDL_MOUSEMOTION) ui.input();
             }
             const auto now=SDL_GetTicks(); const auto delta=o.headless ? 16U : std::max(1U,now-previous); previous=now;
             lv_tick_inc(delta);
             if (o.headless) clock.advance(16);
-            runtime.tick(); ui.update(lv_tick_get()); lv_timer_handler();
+            runtime.tick(); const auto flushes=watch.flush_count(); ui.update(lv_tick_get()); lv_timer_handler();
+            if (!runtime.display_awake()) asleep_flushes+=watch.flush_count()-flushes;
             watch.present(); debug.present(); ++frame;
-            if (!o.headless) SDL_Delay(16);
+            if (!o.headless) {
+                const auto wait=std::clamp<std::int64_t>(std::min(runtime.next_delay_ms(),static_cast<std::int64_t>(ui.next_delay(lv_tick_get()))),1,1000);
+                SDL_WaitEventTimeout(nullptr,static_cast<int>(wait));
+            }
         }
         if (command_index<commands.size()) throw std::runtime_error("Frame limit reached before script completed");
         if (auto result=runtime.flush(true); !result) std::cerr << "{\"event\":\"storage_degraded\",\"state\":\"checkpoint retained\"}\n";
         if (!o.backup.empty()) { status=runtime.backup(o.backup); if (!status) throw std::runtime_error("Backup: "+std::string{status.message.view()}); }
         if (!o.screenshot.empty()) { status=watch.screenshot(o.screenshot); if (!status) throw std::runtime_error("Screenshot: "+std::string{status.message.view()}); }
         if (!o.debug_screenshot.empty()) { status=debug.screenshot(o.debug_screenshot); if (!status) throw std::runtime_error("Debug screenshot: "+std::string{status.message.view()}); }
-        report(o,runtime,watch.rendered_frames(),clicks);
+        report(o,runtime,watch.rendered_frames(),clicks,asleep_flushes);
         std::cout << "{\"event\":\"shutdown\",\"frames\":" << frame << ",\"rendered_frames\":" << watch.rendered_frames() << "}\n";
         return 0;
     } catch (const std::exception& error) { std::cerr << "DaemonOS: " << error.what() << '\n'; return 1; }

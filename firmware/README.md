@@ -1,30 +1,32 @@
-# ESP-IDF integration seed — unvalidated
+# DæmonOS Habitat ESP32-S3 firmware
 
-This is not working T-Watch Ultra firmware. It is a small FreeRTOS integration
-seed importing exactly the desktop domain sources through an ESP-IDF component.
-The entrypoint advances the shared needs engine without board I/O. It generates
-ephemeral state and must not be used as a persistent creature installation.
-
-Baseline candidate: ESP-IDF **v5.5.1**, ESP32-S3, C++20, QSPI PSRAM. No ESP-IDF
-SDK/toolchain is available in the Genesis environment, so this path has not been
-compiled, flashed or hardware-tested. Even sdkconfig defaults are provisional.
-Do not assume the Arduino-oriented LilyGoLib is a native-IDF drop-in.
-
-When the SDK is deliberately installed outside this workflow:
+This firmware cross-builds with ESP-IDF v5.5.1 and links the same C++20 runtime
+and LVGL watch presentation as the desktop. It is not yet usable on a physical
+T-Watch Ultra: display/touch/audio/radio/sensor and explicit deep-sleep drivers
+report unsupported. No flashing or hardware validation is claimed.
 
 ```sh
-cd firmware
-idf.py set-target esp32s3
-idf.py build
+# From repository root; project-local SDK/toolchain/venv only:
+python3 tools/bootstrap_embedded.py
+python3 tools/idf.py build
+python3 tools/firmware_report.py
 ```
 
-No flashing command is part of Genesis validation. Before a real device build,
-provide RTC/clock and randomness qualification, NVS checkpoint, tested MicroSD
-store/VFS, display/touch driver, PMIC sequencing and single-owner task wiring.
-Review memory/stack/partition maps and radio revision. The board pin contract is
-source-inspected only; see `../docs/hardware/t-watch-ultra.md`.
+Artifacts: `build/firmware/daemonos_firmware.bin`, ELF/map, partition table,
+bootloader and clean `size-summary.json` / `size-components.json` evidence.
+The image has two 4 MiB OTA slots in 16 MiB flash; an OTA updater is not present.
+QSPI PSRAM contains the LVGL arena, runtime and budgeted draw/SQLite buffers.
+FreeRTOS blocks on a static event queue/deadlines with tickless idle and configured
+ESP power management. Actual low-power behavior requires measurements.
 
-[Official C++ support](https://docs.espressif.com/projects/esp-idf/en/v5.5.1/esp32s3/api-guides/cplusplus.html)
-documents compiler support and exceptions being disabled by default. The core
-does not require exceptions or RTTI; native desktop SQLite exception translation
-is not included in this firmware component.
+NVS A/B records retain minimum identity/vitals/personality/settings. SQLite is
+compiled with a memory-only readiness probe and a persistent-file denial VFS.
+SD history, locking/sync/durability and RTC/wake integration remain unimplemented.
+No NVS erase is used to mask initialization errors. `config/agent.md` is embedded
+as local bounded guidance. The physical GPIO/expander mapping remains source
+inspection evidence, never a validated driver.
+
+See [full build/adapter details](../docs/embedded-build.md),
+[hardware matrix](../docs/hardware/compatibility-matrix.md),
+[power policy](../docs/architecture/power.md) and
+[actual verification](../docs/verification.md).

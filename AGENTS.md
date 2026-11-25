@@ -16,8 +16,9 @@ backend, remote database or phone-owned creature state.
 - `core/services`: deterministic creature engine and bounded cognition.
 - `core/apps`: independently registered static launcher, clock, settings, creature.
 - `core/platform/desktop`: virtual clock, native SQLite and checkpoint adapter.
-- `simulator`: the only SDL/LVGL integration; two displays, one LVGL owner thread.
-- `firmware`: ESP-IDF integration seed, not validated watch firmware.
+- `presentation`: shared LVGL watch state/controller/view; no SDL/ESP-IDF imports.
+- `simulator`: SDL display/input and a separate lab; one LVGL owner thread.
+- `firmware`: cross-built ESP-IDF runtime/adapters; physical operations unsupported.
 - `protocol`: transport-independent design and JSON schemas; no production transport yet.
 - `android`: integration contract, not an implemented Android app.
 - `assets`: replaceable original provisional sprite and future resources.
@@ -26,8 +27,8 @@ backend, remote database or phone-owned creature state.
 
 Portable core must not include SDL, LVGL, SQLite, ESP-IDF, Arduino, POSIX or OS
 headers. Concrete adapters implement contracts; do not duplicate creature logic
-in firmware, Android or the UI. Future rendering code can be shared through a
-presentation component, never by importing SDL into core. Do not invent an OS
+in firmware, Android or the UI. All watch rendering now lives in the shared
+presentation component; never import SDL into it or into core. Do not invent an OS
 kernel: embedded execution uses FreeRTOS through ESP-IDF.
 
 ## Hardware constraints
@@ -40,7 +41,7 @@ radio, display or PMIC paths from unverified mappings. Account for shared SPI.
 Vendor display dimensions appear rotated in its header; verify orientation on
 the actual board. Check physical revision and radio population first.
 
-No hardware is available for Genesis. Mark all physical peripherals, battery
+No physical hardware is available for Habitat. Mark all physical peripherals, battery
 runtime, radio throughput, DMA behavior and embedded database durability as
 unvalidated until measured. Never present simulator behavior as hardware evidence.
 
@@ -72,8 +73,8 @@ context composition. MicroSD capacity is not available RAM.
 
 Keep the microphone off by default. Render only changed content; reduce animation
 while resting, suspend display and radios where appropriate. Deep sleep breaks
-BLE connections; wake must reconnect. Simulated power states are policy decisions,
-not real low-power transitions. Batch database writes and rate-limit flash
+BLE connections; wake must reconnect. Power policy drives service callbacks and application lifecycle. Physical
+unsupported operations remain explicit; configured SDK light sleep is not measured. Batch database writes and rate-limit flash
 checkpoints. Do not state battery-life targets have been met without measurements.
 
 ## Persistence and recovery
@@ -131,6 +132,11 @@ ctest --preset core
 python3 tools/check_architecture.py
 cmake --preset core -DDAEMON_STATIC_ANALYSIS=ON
 cmake --build --preset core
+python3 tools/analyze.py --build-dir build/desktop
+
+python3 tools/bootstrap_embedded.py
+python3 tools/idf.py build
+python3 tools/firmware_report.py
 ```
 
 The default SDL dependency is system SDL2 **exactly 2.30.0** (Ubuntu 24.04 baseline).
@@ -142,7 +148,8 @@ Never install system packages or change system configuration without authorizati
 
 For substantive changes run appropriate domain/integration tests and the
 architecture check. Run sanitizers for ownership, parsing and lifecycle changes.
-Run a real SDL/LVGL headless scenario for UI changes and inspect a screenshot.
+Run shared-presentation and real SDL/LVGL headless scenarios for UI changes and inspect a screenshot.
+Cross-build after changing shared headers, firmware adapters or presentation.
 Use deterministic injected time/randomness in tests. No network-dependent tests.
 Report exact commands, failures, environment limitations and unexecuted checks.
 Do not add tests that merely mirror trivial implementation details.
@@ -158,3 +165,55 @@ documentation is accurate, outstanding limitations are stated and no claimed tes
 is unexecuted. A scaffold or protocol draft must be labeled as such. Do not mark
 future services, Android, real inference, hardware drivers or power targets done
 because an interface exists.
+
+## Mandatory Habitat energy/resource policy
+
+All services must be event-driven. No busy waits, unjustified polling, permanently
+active idle worker threads, continuous needs updates or periodic unauthorized
+inference. Block on bounded queues/timers; prefer physical interrupts when real
+drivers exist. Tickless idle and ESP power management must remain enabled.
+Initialize expensive peripherals lazily, declare the consuming service/resource
+mask and finite wake constraints, and disable unused peripherals. Wi-Fi, GPS,
+NFC, LoRa and the microphone must not become active without an explicit consumer.
+Future nonessential reflection should favor charging and require scheduler approval.
+
+Use `PowerManager` RAII leases; check failures, preserve generation-safe release,
+exercise expiry and expose the owner in telemetry. No service may silently keep
+the system awake. Storage operations, scheduled work and active cognition need
+scoped ownership. Suspend/resume foreground lifecycle with the power plan.
+Keep safe physical deep sleep behind checkpoint/rail/radio/wake qualification;
+the current adapter reports unsupported. Never infer board current from desktop
+process activity. Five days is the design goal and three days the desirable
+minimum, both unverified until physical measurements.
+
+Use `ResourceManager` for actual application buffers or declared fixed-arena
+reservations, with explicit placement. Default pool caps are 128 KiB internal
+and 6 MiB external; nominal 512 KiB/8 MiB is not free application memory. Respect
+category caps, track peaks/rejections and test pressure cancellation/reclamation.
+Critical ISR handoff buffers and task stacks stay internal; runtime/LVGL/SQLite
+arenas use PSRAM. Do not declare a PSRAM buffer DMA-safe before driver validation.
+SDK allocations are outside the ledger and need independent heap/stack telemetry.
+
+Watch rendering is shared, partial and on demand. Stop watch flushes while asleep;
+lab diagnostics must stay outside the product UI and firmware. Finite virtual-time
+headless execution is a test harness, not a background service policy.
+
+## Embedded/readiness and Awakening contracts
+
+Use the pinned project-local SDK/tool manifest and Python lock, never global
+installation. Run `tools/bootstrap_embedded.py --check` and `tools/idf.py build`.
+Read `docs/embedded-build.md` before interpreting the ELF, NVS or VFS. Confirm
+`.ext_ram.bss` placement with `tools/firmware_report.py`; text in sdkconfig alone
+is insufficient. Persistent SD SQLite operations are deliberately unsupported.
+NVS A/B minimum records are not a full portable creature export or a durability claim.
+
+Use Clang static analysis for C++ (`tools/analyze.py`); GCC 13's analyzer is
+C-only in its documented scope and is not the Habitat C++ gate. Keep first-party
+warnings as errors. Document targeted third-party compatibility flags in ADRs.
+
+Awakening v0.3.0 is the next milestone. Habitat uses bounded response schema v2,
+legacy v1 compatibility, local configurable agent.md and persistent familiar name.
+Speech may be null. Validate counts, UTF-8, numeric ranges and every capability
+before effects. Personality/intention proposals remain denied execution in the
+current creature app; adding a schema field does not grant permission. No real
+provider or mandatory middleware belongs in Habitat. Keep the watch authoritative.

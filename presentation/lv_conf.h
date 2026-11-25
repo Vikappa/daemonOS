@@ -3,7 +3,11 @@
 #define LV_COLOR_DEPTH 32
 #define LV_USE_OS LV_OS_NONE
 #define LV_USE_STDLIB_MALLOC LV_STDLIB_BUILTIN
-#define LV_MEM_SIZE (2 * 1024 * 1024U)
+#define LV_MEM_SIZE (512 * 1024U)
+#ifdef ESP_PLATFORM
+#include "esp_attr.h"
+#define LV_ATTRIBUTE_LARGE_RAM_ARRAY EXT_RAM_BSS_ATTR
+#endif
 #define LV_DEF_REFR_PERIOD 33
 #define LV_DPI_DEF 160
 #define LV_USE_LOG 0

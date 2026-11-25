@@ -4,13 +4,27 @@
 #include <span>
 
 namespace daemonos {
+struct AgentConfiguration {
+    Text<1024> instructions{std::string_view{"You are a curious, kind digital familiar embodied in this watch. Respect your keeper and local capabilities."}};
+};
+struct MemoryCandidate { Text<192> content{}; double importance{0.5},valence{}; };
+struct PersonalityProposal { Text<24> trait{}; double delta{}; };
+struct IntentionProposal { Text<96> description{}; std::uint32_t after_seconds{}; };
+struct VoiceParameters { double rate{1},pitch{1},volume{0.7}; bool present{}; };
 struct CognitiveResponse {
+    std::uint32_t schema_version{1};
     Text<512> speech{};
     Text<24> emotion{std::string_view{"calm"}};
     Text<24> animation{std::string_view{"idle"}};
     double intensity{};
     std::array<Capability, 4> actions{};
     std::size_t action_count{};
+    Text<24> facial_expression{std::string_view{"neutral"}};
+    VoiceParameters voice{};
+    std::array<MemoryCandidate,2> memory_candidates{};
+    std::array<PersonalityProposal,2> personality_adjustments{};
+    std::array<IntentionProposal,2> intentions{};
+    std::size_t memory_count{},personality_count{},intention_count{};
 };
 class ResponseParser {
 public:
@@ -30,7 +44,7 @@ private: StateStore& store_;
 };
 class ContextBuilder {
 public:
-    Status build(const CreatureState& state, const MemoryPage& memories);
+    Status build(const CreatureState& state, const MemoryPage& memories,const AgentConfiguration& agent={},const Environment& environment={},Event trigger={EventType::think});
     std::string_view context() const { return {buffer_.data(), size_}; }
 private:
     std::array<char, budget::context_bytes> buffer_{};

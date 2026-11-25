@@ -6,8 +6,11 @@
 #include <iomanip>
 #include <sstream>
 #include <unistd.h>
+#include <cstdlib>
 
 namespace daemonos::desktop {
+void* Allocator::allocate(std::size_t bytes,MemoryPool) { return std::aligned_alloc(32,(bytes+31)/32*32); }
+void Allocator::release(void* memory) { std::free(memory); }
 VirtualClock::VirtualClock(std::int64_t epoch) : origin_(std::chrono::steady_clock::now()), wall_origin_(epoch) {}
 std::int64_t VirtualClock::monotonic_ms() const {
     const auto elapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - origin_).count();

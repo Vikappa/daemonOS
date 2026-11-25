@@ -1,5 +1,6 @@
 #include "daemon/services/creature.hpp"
 #include <cstdio>
+#include <cinttypes>
 #include <limits>
 
 namespace daemonos {
@@ -7,7 +8,7 @@ CreatureState CreatureEngine::create(hal::Clock& clock, hal::Random& random) {
     CreatureState state;
     char id[40]{};
     const auto a = random.next(), b = random.next(), c = random.next(), d = random.next();
-    std::snprintf(id, sizeof(id), "%08x-%08x-%08x-%08x", a, b, c, d);
+    std::snprintf(id, sizeof(id), "%08" PRIx32 "-%08" PRIx32 "-%08" PRIx32 "-%08" PRIx32, a, b, c, d);
     state.id.assign(id);
     state.born_at = std::max<std::int64_t>(0, clock.wall_seconds());
     state.last_wall = state.born_at;

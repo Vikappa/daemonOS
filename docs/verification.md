@@ -1,115 +1,134 @@
-# Genesis v0.1.0 verification report
+# Habitat v0.2.0 verification report
 
-Date: **2026-11-25**. Results below were executed locally. CI configuration is
-included, but no remote repository, GitHub Actions run or release publication
-was created. Physical hardware was not available.
+Date: **2026-11-25**. Baseline: Genesis `69d8c68`. All results below were executed
+locally against Habitat source. CI was updated but no remote repository, Actions
+run, push or release publication was created. No physical watch is available.
+[Genesis results are archived](verification-genesis.md).
 
-## Environment
+## Acceptance and actual checks
 
-Linux x86-64 / Ubuntu 24.04, GCC 13.3.0, CMake 3.28.3, Ninja and Python 3.12.3.
-System SDL2 is 2.30.0. SQLite 3.50.4 and LVGL 9.2.2 were built from hash-verified
-upstream archives. A separate Release configuration also built SDL2 2.30.0 from
-its pinned archive, exercising the same dependency path used by CI.
-
-## Executed checks
-
-| Check | Actual result |
+| Check | Result |
 |---|---|
-| `cmake --preset desktop` and `cmake --build --preset desktop` | PASS, first-party C++20 with warnings treated as errors |
-| `ctest --preset desktop` | PASS, 2/2 CTest entries |
-| `./build/desktop/daemon_tests` | PASS, 16 named cases, 952 checks, zero failures |
-| SDL/LVGL process integration | PASS, actual SDL mouse input, multiple process restarts and framebuffer assertions |
-| `cmake --preset sanitize`, build and `ctest --preset sanitize` | PASS, 2/2, ASan + UBSan + LeakSanitizer |
-| Release build with `-DDAEMON_SYSTEM_SDL=OFF` | PASS, SQLite/LVGL/SDL built from pinned source |
-| `ctest --test-dir build/release --output-on-failure` | PASS, 2/2 |
-| GCC `-fanalyzer` on `daemon_core` | PASS, no remaining diagnostics |
-| `python3 tools/check_architecture.py` | PASS, portable include boundaries and protocol JSON syntax |
-| Non-headless SDL X11 smoke run | PASS, 90 frames, 46 watch presentations, clean shutdown |
-| Screenshot review | PASS, launcher, creature and separate lab images inspected and layout overlap corrected |
+| Desktop Debug configure/build | PASS, C++20, first-party warnings treated as errors |
+| Desktop Debug CTest | PASS, **4/4** entries |
+| Genesis regression executable | PASS, **16 cases / 954 checks** |
+| Habitat executable | PASS, **9 cases / 115 checks** |
+| Native Release, source-built pinned SDL2 | PASS, build + **4/4** CTest entries |
+| ASan + UBSan + LeakSanitizer | PASS, **4/4**, leak detection enabled |
+| ESP-IDF v5.5.1 / Xtensa GCC 14.2.0 cross-build | PASS, real ELF/bin/map generated |
+| Firmware report/map placement/OTA slot checks | PASS, common runtime/view linked and LVGL arena in external BSS |
+| Clang 18 C++ static analyzer | PASS, **17** first-party core/adapter/presentation units |
+| Core-only analysis build | PASS, **10** portable units |
+| Architecture boundaries and protocol JSON syntax | PASS |
+| Pinned local SDK/Python package check | PASS; also checked without a mutable IDF constraints file |
+| Non-headless X11 smoke | PASS, two windows, 40 iterations, 9 watch presentations, three mouse interactions and clean shutdown |
+| Actual framebuffer review | PASS, launcher, familiar and separate lab inspected |
 
-LeakSanitizer initially failed because the restricted execution sandbox uses
-ptrace. The complete sanitizer suite was then executed outside that traced
-sandbox and passed with leak detection enabled. A separate in-sandbox run with
-`ASAN_OPTIONS=detect_leaks=0` also passed; that run alone would not prove leak
-checking. X11 access likewise required execution outside the restricted sandbox.
-These are environment constraints, not suppressed application failures.
+LeakSanitizer and X11 ran outside the restricted traced sandbox because that
+sandbox prevents leak tracing/display access. Sanitizer checks were not merely
+rerun with leak detection disabled. GCC 13 `-fanalyzer` produced uninitialized
+return-object diagnostics on initialized move-only handles; its documented scope
+is C. Habitat instead uses Clang for C++ without suppressing first-party analyzer
+warnings (ADR 0007). No hardware/peripheral test is inferred from these results.
 
-Domain/integration cases cover bounded queue saturation and reentrancy,
-subscription lifetime, service lookup, application lifecycle/navigation,
-deterministic time partitioning and offline caps, wall-clock rollback, autonomous
-sleep, power decisions, bounded scheduler replacement, malformed/oversized/
-unknown cognitive input, 500 deterministic parser noise inputs, capability
-rejection, request timeout/backoff, incremental mock responses and cancellation.
+The four CTest entries are the original domain/persistence suite, Habitat
+power/resources/presentation suite, original SDL restart/fault scenario and a new
+three-day SDL suspension/configuration/pressure scenario. The two C++ executables
+total **25 cases and 1069 checks**; Python assertions are additional.
 
-Persistence tests cover empty initialization, full round trips, settings,
-pagination, literal text/tag/entity filters, export/reopen, a triggered SQL
-failure rolling back state and memory together, migration from schema 1 to 2,
-newer-schema refusal, corrupt/incomplete state, checkpoint checksum rejection,
-RAM continuity during storage faults, queue overflow telemetry, reconnect drain,
-restart catch-up, minimal checkpoint transfer and refusal to silently replace
-an inaccessible identity.
+## Behavioral evidence
 
-The Python integration test launches four real simulator processes, drives clock
-and settings navigation plus feeding/petting/rest, injects movement/charging/
-connectivity, completes a mock stream, verifies 410 x 502 nonblank bitmaps,
-restarts with elapsed wall time, checks the SQLite export, heals a storage fault,
-then corrupts the stopped database and verifies checkpoint identity recovery.
-It does not emulate a physical SD power interruption.
+Genesis regression coverage remains: bounded events/reentrancy, registry and
+navigation lifecycle, deterministic partitioned needs, offline caps, clock
+rollback, power/scheduler behavior, 500 deterministic parser noise inputs,
+transaction rollback, SQLite migrations/pagination/export, corrupt state,
+checksum recovery, storage faults and identity continuity.
 
-## Visual evidence
+Habitat adds service power coordination, allowed resource masks, RAII lock
+move/reset/expiry/reuse, Listening/Speaking transitions, real buffer allocation
+caps, pressure cancellation/reclamation, scheduled work during sleep and local
+agent/name configuration. A 10,000-call quiescence test after a three-day time
+jump performs no needs updates or writes until wake. Depleted-battery recovery
+preserves health; ten elapsed days exercise the existing seven-day catch-up cap.
+A 5,000-row SQLite history test hits the VM work limit and returns an empty budget
+error rather than scanning without bound.
 
-These are actual LVGL framebuffer captures, converted losslessly from BMP to PNG
-for repository review. The debug panel is separate from the watch display.
+The **actual shared watch view** is unit-tested through a real LVGL display and
+flush callback. A thousand sleeping update/timer calls produce no flushes, then
+wake redraws. SDL tests drive real mouse events, not direct state mutation, and
+verify persistent identity/name/settings, storage healing, export and corrupted-card
+checkpoint recovery. The new scenario checks zero asleep flushes, bounded
+simulation calls, released cognitive memory and a five-second speaking lock.
+V2 parsing covers silence, voice/proposals, invalid UTF-8/escapes, unknown actions,
+duplicate versions and capability denial before effects.
 
-| Launcher | Creature | Lab |
-|---|---|---|
-| [Screenshot](screenshots/launcher.png) | [Screenshot](screenshots/creature.png) | [Screenshot](screenshots/lab.png) |
+Screenshots are actual LVGL buffers converted losslessly to PNG:
+[launcher](screenshots/launcher.png), [familiar](screenshots/creature.png),
+[lab](screenshots/lab.png). A fresh 100-frame headless interaction capture reports
+18 watch presentations, zero asleep flushes, 3 simulation materializations, queue
+peak 1, internal reservation 32,768 bytes and external peak 1,738,424 bytes. These
+are simulator reservation observations, not measured ESP SRAM/current.
 
-Headless screenshots are captured before brightness modulation, use a fixed
-timestamp and seed, and contain test state only. A non-headless X11 run also
-opened both windows and processed the scripted interactions. No automated test
-asserts visual aesthetics; the saved images were inspected directly.
+## Firmware image and memory evidence
 
-## Host resource observations
+Outputs: `build/firmware/daemonos_firmware.elf`, `.bin`, `.map`, bootloader,
+partition table and clean `size-summary.json` / `size-components.json`.
+[Committed machine-readable evidence](verification/habitat-firmware-size.json)
+records the pinned SDK/compiler, sections and selected component contributions.
 
-`daemon_resources` reports host ABI sizes, in bytes:
-
-| Object | Size |
+| Link/build observation | Bytes |
 |---|---:|
-| Event | 8 |
-| EventBus | 936 |
-| CreatureState | 208 |
-| Memory | 872 |
-| MemoryPage | 6984 |
-| Runtime | 23040 |
-| ContextBuilder | 4104 |
-| ResponseParser | 2064 |
-| Scheduler | 776 |
+| Application binary, padded | 944,544 |
+| IDF image size before binary padding | 944,295 |
+| One OTA slot | 4,194,304 |
+| Free space in each OTA slot | 3,249,760 |
+| Flash text | 670,540 |
+| Flash read-only data | 194,372 |
+| Internal data | 15,512 |
+| Internal BSS | 4,288 |
+| IRAM vectors + IRAM text, map | 63,615 |
+| External BSS / PSRAM | 549,904 |
 
-A Release run with source-built SDL, dummy video, 120 headless frames and a
-fresh state directory reported **13,268 KiB maximum RSS**, **0.02 s user CPU**,
-**2.00 s wall time** and 40 watch presentations using `/usr/bin/time -v`.
-Timing is environment-dependent and includes initialization, persistence and
-sandbox scheduling. It is not a frame-rate or battery benchmark.
+Internal static data+BSS+IRAM code/vectors total **83,415 bytes**.
+IDF reports 67,031 bytes used in its shared DIRAM region and 274,729 bytes left
+there before dynamic SDK/application heaps. A separate 16,384-byte IRAM subregion
+is fully used; this is not a claim that all nominal 512 KiB SRAM is exhausted.
+External BSS is the 524,288-byte LVGL arena plus the 25,616-byte runtime object.
 
-The x86-64 Release executable is approximately 5.1 MiB. GNU `size` reported
-4,632,688 text bytes, 98,064 data bytes and 2,123,648 BSS bytes, including the
-desktop LVGL arena and desktop dependencies. These numbers do not predict
-Xtensa binary size, ESP32 SRAM fit or a production partition layout.
+Known dynamic allocations include 65,600 bytes of PSRAM draw buffer and a fixed
+196,608-byte SQLite arena, plus a 32 KiB internal main task stack and platform
+queue. SDK heap, stacks, cache/DMA constraints and high-water marks require actual
+execution. The link map demonstrates placement, not runtime memory qualification.
+The report separates external NOBITS data from flash image bytes; a formatted
+IDF table grouping it with other data must not be read as flash consumption.
 
-## Explicitly not validated / open debt
+Selected archive flash contributions: SQLite 348,617 bytes, LVGL 265,960 bytes,
+portable core 22,712 bytes and shared presentation 7,894 bytes. SQLite itself
+accounts for substantial flash and must stay subject to the embedded gate.
+No physical SQLite probe, NVS write, display flush, radio operation, sleep current
+or wake latency was executed on hardware.
 
-- ESP-IDF integration seed was not compiled: SDK/toolchain is absent. No flashing
-  or real peripheral access was attempted.
-- No CO5300/CST9217/PMIC/IMU/GNSS/NFC/radio/audio/BLE/Wi-Fi driver or current
-  consumption was validated. No battery endurance target is claimed.
-- SQLite on ESP32/FatFS, media power interruption, brownout recovery, NVS wear,
-  DMA/PSRAM placement and real BLE fragmentation/throughput remain hardware gates.
-- Android, production transports/authentication, STT/TTS, codecs, real inference,
-  OTA, personality evolution and full app resource supervision remain future work.
-- Database encryption, automatic salvage/import, recall counter updates and
-  indexed large-history retrieval are not implemented. Fault-buffered memories
-  can be lost on process death; the minimal checkpoint does not contain history.
+## Reproducibility and open exceptions
 
-The next recommended milestone is **v0.2 Habitat**. See
-[the roadmap](roadmap/roadmap.md) and [ADRs](adr/0001-portable-genesis.md).
+Host: Ubuntu 24.04.5 x86-64, GCC 13.3.0, Clang 18.1.3, CMake 3.28.3, Ninja 1.11.1,
+Python 3.12.3. ESP-IDF v5.5.1 is pinned to
+`fcae32885b0296b32044cb99ecbdc50d98dddb83`; Xtensa is
+`esp-14.2.0_20241119`. LVGL/SQLite/SDL archives retain Genesis hashes. SDK/tools,
+venv and caches are project-local. Python versions are locked, not wheel hashes
+or an entire bit-reproducible host image.
+
+Habitat's desktop and cross-build software criteria are satisfied with explicit
+physical gates: unsupported display/touch/audio/radio/sensor/RTC/deep-sleep
+operations; no usable watch firmware, no FatFS SQLite VFS or SD history, and no
+hardware NVS durability/wear qualification. The compiled NVS minimum adapter and
+memory-only SQLite readiness probe are not runtime hardware validation.
+
+Other debt: seven-day catch-up cap, lossy RAM experience queue on crash,
+unindexed histories may hit the query budget, ABI-specific NVS records lack
+historical migration/encryption, v2 Unicode escape support is deferred, and
+personality/intention execution plus real inference remain Awakening work.
+
+The [energy model](architecture/energy-budget.md) uses nominal 1100 mAh and
+explicit hypothetical currents. Its 5.2071-day sample projection is not a measured
+result. Five days is the design goal, three days the desirable minimum.
+Next milestone: **Awakening v0.3.0**.

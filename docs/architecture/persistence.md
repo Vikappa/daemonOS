@@ -24,9 +24,10 @@ logical inconsistencies or filesystem failures.
 Memory retrieval returns at most eight records and ranks 60% importance, 40%
 recency relative to the creature timestamp, with deterministic ties. Content,
 tags and entities use literal case-insensitive substring filtering. There are no
-mandatory embeddings or vector database. Offset <=10000. This bounds output RAM,
-not full scan/sort CPU cost; indexed full-text search and retention policies are
-future work. Recall frequency, last-recall, summary and memory-link fields are
+mandatory embeddings or vector database. Offset <=10000. Output RAM is bounded. Habitat also interrupts retrieval after approximately
+100,000 SQLite VM instructions; an exhausted query returns a budget/busy error
+and an empty result. Indexed full-text search and retention policies remain
+necessary for large histories. Recall frequency, last-recall, summary and memory-link fields are
 stored, but recall counters and automatic summarization are not updated yet.
 
 Live state uses monotonic time; persisted wall time supports offline catch-up.
@@ -94,3 +95,30 @@ contract allows a journaled key-value alternative if SQLite fails that gate.
 Sources: [SQLite locking](https://www.sqlite.org/lockingv3.html),
 [SQLite corruption modes](https://www.sqlite.org/howtocorrupt.html),
 [ESP-IDF FatFS VFS](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/storage/fatfs.html).
+
+## Habitat embedded readiness and memory caps
+
+The desktop simulator gives SQLite a fixed 1 MiB memsys5 arena from its budgeted
+allocator before initialization; cache is still 128 KiB. Unit tests retain native
+allocation for independent persistence validation. Query failures never expose
+partial memory pages. Memory pressure requests native cache release; the arena
+remains reserved while its owner exists.
+
+ESP32-S3 now cross-builds SQLite 3.50.4 with OS_OTHER, a serialized owner, 32 KiB
+cache and a fixed 192 KiB PSRAM heap. Its VFS deliberately rejects persistent
+files; a compiled memory-only readiness probe must not be described as an executed
+hardware test. WAL, JSON extensions and loadable extensions are omitted. A real
+FatFS VFS, locking/sync and power interruption remain unimplemented gates.
+
+The firmware uses NVS A/B minimum records (version, ABI size, monotonic record
+sequence and CRC covering header/state/settings) for identity/vitals/personality
+and small settings. These records are compiled but not tested on hardware and
+are not compatible with the desktop text checkpoint format. No old ABI migration,
+portable checkpoint import, encryption or measured wear guarantee exists yet.
+Full history/query/export calls return unsupported. NVS initialization failures
+never trigger automatic erasure.
+
+At a technical reboot or a depleted-battery suspension, catch-up preserves
+previous health while other needs and age progress under the seven-day cap.
+This avoids punishing a hardware problem as neglect. Physical RTC continuity
+and safe wake sources still need board integration.

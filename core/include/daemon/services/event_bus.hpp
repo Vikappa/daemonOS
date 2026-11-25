@@ -36,7 +36,7 @@ public:
     }
     bool post(Event event) {
         if (size_ == queue_.size()) { ++dropped_; return false; }
-        queue_[(head_ + size_) % queue_.size()] = event; ++size_; return true;
+        queue_[(head_ + size_) % queue_.size()] = event; ++size_; peak_=std::max(peak_,size_); return true;
     }
     std::size_t dispatch(std::size_t limit = budget::events) {
         if (dispatching_) return 0;
@@ -54,11 +54,13 @@ public:
     }
     std::size_t dropped() const { return dropped_; }
     std::size_t pending() const { return size_; }
+    std::size_t peak() const { return peak_; }
 private:
     struct Slot { Callback callback{}; void* context{}; std::uint64_t generation{}; };
     std::array<Event, budget::events> queue_{};
     std::array<Slot, budget::subscribers> slots_{};
     std::size_t head_{}, size_{}, dropped_{};
+    std::size_t peak_{};
     std::uint64_t generation_{};
     bool dispatching_{};
 };

@@ -6,7 +6,7 @@
 #include <string_view>
 
 namespace daemonos {
-enum class Error { none, unavailable, invalid, full, io, corrupt, incompatible, denied, busy };
+enum class Error { none, unavailable, invalid, full, io, corrupt, incompatible, denied, busy, unsupported };
 template<std::size_t N> class Text {
 public:
     Text() = default;
@@ -94,12 +94,13 @@ struct MemoryPage { std::array<Memory, budget::memory_page> items{}; std::size_t
 enum class AppId : std::uint8_t { launcher, clock, settings, creature };
 enum class EventType : std::uint8_t {
     feed, rest, pet, move, battery, charging, connectivity, storage, think,
-    open_app, back, home, toggle_cognition, brightness, suspend, wake
+    open_app, back, home, toggle_cognition, brightness, suspend, wake,
+    memory_pressure, peripheral, inspect_contract
 };
 struct Event { EventType type{}; std::int32_t value{}; };
-enum class PowerState : std::uint8_t { deep_sleep, ble_standby, interactive, listening, thinking, speaking, charging };
+enum class PowerState : std::uint8_t { deep_sleep, ble_standby, interactive, listening, thinking, speaking, charging, standby = ble_standby };
 inline std::string_view power_name(PowerState s) {
-    constexpr std::array names{"DEEP SLEEP", "BLE STANDBY", "INTERACTIVE", "LISTENING", "THINKING", "SPEAKING", "CHARGING"};
+    constexpr std::array names{"DEEP SLEEP", "STANDBY", "INTERACTIVE", "LISTENING", "THINKING", "SPEAKING", "CHARGING"};
     return names[static_cast<std::size_t>(s)];
 }
 struct Environment { int battery{85}; bool charging{}; bool connected{}; bool storage{true}; std::uint32_t steps{}; };

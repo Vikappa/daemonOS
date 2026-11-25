@@ -1,4 +1,4 @@
-name: Linux Genesis
+name: Habitat desktop and ESP32-S3
 on: [push, pull_request]
 permissions:
   contents: read
@@ -18,9 +18,20 @@ jobs:
         run: ctest --preset ${{ matrix.preset }}
       - name: Architecture boundaries
         run: python3 tools/check_architecture.py
-      - name: GCC static analysis of portable core
+      - name: Clang static analysis of C++ core, adapters and shared presentation
         if: matrix.preset == 'desktop'
         run: |
           cmake --preset core -DDAEMON_STATIC_ANALYSIS=ON
           cmake --build --preset core --target daemon_core
+          python3 tools/analyze.py --build-dir build/desktop
+  embedded:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up pinned SDK and tools locally
+        run: python3 tools/bootstrap_embedded.py
+      - name: Cross-build ESP32-S3 shared core and presentation
+        run: python3 tools/idf.py build
+      - name: Firmware memory report
+        run: python3 tools/firmware_report.py
   # Hardware, Android, network endpoints and battery endurance are not CI claims.

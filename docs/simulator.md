@@ -1,14 +1,14 @@
 # Desktop simulator
 
 Build and run commands are in the root README. Linux/Ubuntu 24.04 is the tested
-host. Watch coordinates are always 410 x 502. The second 460 x 670 LVGL display
+host. Watch coordinates are always 410 x 502. The second 460 x 960 LVGL display
 is a developer panel. Both are rendered on one thread through a small SDL HAL,
-using LVGL partial redraw and ARGB8888 draw buffers. Mouse maps to capacitive
+using the same `daemon_presentation` as firmware, partial redraw and ARGB8888 draw buffers. Mouse maps to capacitive
 touch; `H`, `Esc`, `Space` simulate home/back/wake buttons. Only left click is
 accepted. Closing either window flushes state and the minimal checkpoint.
 
 The lab controls virtual clock speed (1x/60x), one-hour jumps, battery percentage,
-charging, motion/steps, simulated connection loss, database faults and sleep/wake.
+charging, motion/steps, simulated connection loss, database faults, memory pressure, finite audio/Wi-Fi/sensor ownership and sleep/wake.
 These change runtime inputs; they never write the creature's fields directly.
 Battery input is not a discharge model. A connection means the mock provider can
 be scheduled; it does not establish BLE or Wi-Fi. Storage fault denies adapter
@@ -64,5 +64,18 @@ The report contains identity, state, app, simulated conditions, power state,
 rendered-frame count and mouse clicks. Screenshots capture the actual watch
 framebuffer before simulated brightness modulation, so even a sleeping display
 can be inspected. They do not include the debug panel or desktop window chrome.
-Assets are resolved from the build's source asset directory; standalone binary
-installation/asset packaging remains future work.
+The same palette asset is compiled into both targets; replacing its source rebuilds the resource. Standalone asset packaging remains future work.
+
+Habitat adds `--name NAME` (persistent, 1..31 bytes) and `--agent PATH` (<=1023 bytes).
+The default agent file is the repository's `config/agent.md`, also embedded in
+firmware. Names are independent of DæmonOS branding; Ember remains the default.
+The lab has pressure, empty-battery, five-second speaking/Wi-Fi/sensor lease and
+contract-inspection controls. Reports include asleep flushes, simulation updates,
+active locks, sleep duration, memory peak and queue peak. The watch performs zero
+flushes while off; its last framebuffer is retained for inspection.
+
+Real-time execution blocks with SDL event waits and only due work updates the
+runtime/view. Touch is delivered on events, not a continuously polled timer.
+The lab alone samples diagnostic text at 2 Hz. Its displayed memory is a resource
+reservation model, not host RSS or measured device consumption. Speech controls
+simulate a power consumer; they do not claim a working audio pipeline.

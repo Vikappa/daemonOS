@@ -2,9 +2,13 @@
 #include <stdexcept>
 
 namespace daemonos::simulator {
-SdlDisplay::SdlDisplay(const char* title, int width, int height, int x, int y, bool hidden)
-    : width_(width), height_(height), frame_(static_cast<std::size_t>(width * height), 0xff000000U),
-      draw_buffer_(static_cast<std::size_t>(width * 40)) {
+SdlDisplay::SdlDisplay(const char* title, int width, int height, int x, int y, bool hidden,ResourceManager* resources)
+    : width_(width), height_(height), frame_(static_cast<std::size_t>(width * height), 0xff000000U) {
+    const auto pixels=static_cast<std::size_t>(width*40);
+    if (resources) {
+        draw_memory_=resources->allocate(MemoryCategory::graphics,MemoryPool::external,pixels*4);
+        if (!draw_memory_) throw std::runtime_error("display draw buffer budget exhausted");
+    } else draw_buffer_.resize(pixels);
     window_ = SDL_CreateWindow(title,x,y,width,height,hidden ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN);
     if (window_) renderer_ = SDL_CreateRenderer(window_,-1,SDL_RENDERER_SOFTWARE);
     if (renderer_) texture_ = SDL_CreateTexture(renderer_,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,width,height);
@@ -19,13 +23,14 @@ SdlDisplay::SdlDisplay(const char* title, int width, int height, int x, int y, b
     if (!display_) throw std::runtime_error("LVGL display allocation failed");
     lv_display_set_user_data(display_,this);
     lv_display_set_color_format(display_,LV_COLOR_FORMAT_ARGB8888);
-    lv_display_set_buffers(display_,draw_buffer_.data(),nullptr,static_cast<std::uint32_t>(draw_buffer_.size() * sizeof(std::uint32_t)),LV_DISPLAY_RENDER_MODE_PARTIAL);
+    lv_display_set_buffers(display_,draw_memory_ ? draw_memory_.data() : draw_buffer_.data(),nullptr,static_cast<std::uint32_t>(pixels*4),LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_flush_cb(display_,flush_cb);
     input_ = lv_indev_create();
     lv_indev_set_type(input_,LV_INDEV_TYPE_POINTER);
     lv_indev_set_display(input_,display_);
     lv_indev_set_user_data(input_,this);
     lv_indev_set_read_cb(input_,read_cb);
+    lv_timer_pause(lv_indev_get_read_timer(input_));
 }
 SdlDisplay::~SdlDisplay() {
     if (input_) lv_indev_delete(input_);
@@ -39,7 +44,7 @@ Status SdlDisplay::flush(int x, int y, int width, int height, std::span<const st
         return Status::fail(Error::invalid,"display flush bounds");
     for (int row = 0; row < height; ++row)
         std::copy_n(pixels.data() + row * width,width,frame_.data() + (y + row) * width_ + x);
-    dirty_ = true; return {};
+    dirty_ = true; ++flushes_; return {};
 }
 void SdlDisplay::brightness(int percent) {
     const auto value = static_cast<std::uint8_t>(std::clamp(percent,0,100) * 255 / 100);
@@ -60,8 +65,10 @@ void SdlDisplay::read_cb(lv_indev_t* input, lv_indev_data_t* data) {
 void SdlDisplay::event(const SDL_Event& event) {
     if (event.type == SDL_MOUSEMOTION && event.motion.windowID == window_id()) {
         pointer_.x = event.motion.x; pointer_.y = event.motion.y;
+        if (pointer_.pressed) lv_indev_read(input_);
     } else if ((event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) && event.button.windowID == window_id() && event.button.button == SDL_BUTTON_LEFT) {
         click(event.button.x,event.button.y,event.type == SDL_MOUSEBUTTONDOWN);
+        lv_indev_read(input_);
     } else if (event.type == SDL_WINDOWEVENT && event.window.windowID == window_id()) {
         if (event.window.event == SDL_WINDOWEVENT_EXPOSED) dirty_ = true;
         if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST) pointer_.pressed = false;

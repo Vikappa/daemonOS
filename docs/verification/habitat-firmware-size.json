@@ -1,0 +1,88 @@
+{
+  "sdk_commit": "fcae32885b0296b32044cb99ecbdc50d98dddb83",
+  "xtensa_gcc": "14.2.0 / esp-14.2.0_20241119",
+  "summary": {
+    "dram_data": 0,
+    "dram_bss": 0,
+    "dram_rodata": 0,
+    "dram_other": 0,
+    "used_dram": 0,
+    "dram_total": 0,
+    "used_dram_ratio": 0,
+    "dram_remain": 0,
+    "iram_vectors": 1028,
+    "iram_text": 15356,
+    "iram_other": 0,
+    "used_iram": 16384,
+    "iram_total": 16384,
+    "used_iram_ratio": 1.0,
+    "iram_remain": 0,
+    "diram_data": 15512,
+    "diram_bss": 4288,
+    "diram_text": 47231,
+    "diram_vectors": 0,
+    "diram_rodata": 0,
+    "diram_other": 0,
+    "diram_total": 341760,
+    "used_diram": 67031,
+    "used_diram_ratio": 0.19613471441947566,
+    "diram_remain": 274729,
+    "flash_code": 670540,
+    "flash_rodata": 194372,
+    "flash_other": 256,
+    "used_flash_non_ram": 865168,
+    "total_size": 944295,
+    "map_sections": {
+      ".dram0.data": 15512,
+      ".dram0.bss": 4288,
+      ".iram0.vectors": 1028,
+      ".iram0.text": 62587,
+      ".flash.text": 670540,
+      ".flash.rodata": 194372,
+      ".ext_ram.bss": 549904
+    },
+    "application_binary_bytes": 944544,
+    "ota_slot_bytes": 4194304,
+    "hardware_validated": false
+  },
+  "components": {
+    "libdaemon_core.a": {
+      ".flash.rodata": 486,
+      ".flash.text": 22226,
+      "flash_total": 22712,
+      "ram_st_total": 0
+    },
+    "libdaemon_presentation.a": {
+      ".dram0.bss": 32,
+      ".flash.rodata": 4112,
+      ".flash.text": 3782,
+      "flash_total": 7894,
+      "ram_st_total": 32
+    },
+    "libdaemon_sqlite.a": {
+      ".dram0.bss": 657,
+      ".dram0.data": 4628,
+      ".flash.rodata": 21333,
+      ".flash.text": 322656,
+      "flash_total": 348617,
+      "ram_st_total": 5285
+    },
+    "liblvgl.a": {
+      ".dram0.bss": 496,
+      ".dram0.data": 80,
+      ".ext_ram.bss": 524288,
+      ".flash.rodata": 88362,
+      ".flash.text": 177518,
+      "flash_total": 265960,
+      "ram_st_total": 524864
+    },
+    "libmain.a": {
+      ".dram0.bss": 596,
+      ".ext_ram.bss": 25616,
+      ".flash.rodata": 613,
+      ".flash.text": 4332,
+      "flash_total": 4945,
+      "ram_st_total": 26212
+    }
+  }
+}

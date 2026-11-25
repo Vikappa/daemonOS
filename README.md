@@ -2,22 +2,20 @@
 
 **The watch is the creature. The language model is its cognitive coprocessor.**
 
-Genesis **v0.1.0** is an offline-first C++20 operating-environment foundation for
-programmable wearables, initially targeting LilyGO T-Watch Ultra. A working Linux
-LVGL 9 / SDL2 simulator is the primary development platform. No physical watch
-peripheral or battery-life claim has been validated.
+**Habitat v0.2.0** is an offline-first C++20 wearable foundation targeting LilyGO
+T-Watch Ultra. Linux and ESP32-S3 now compile the **same core and LVGL watch
+presentation**. The simulator works; the ESP-IDF firmware cross-builds. Physical
+watch drivers, sleep behavior and battery endurance remain unvalidated.
 
-Actual simulator captures: [launcher](docs/screenshots/launcher.png),
-[Ember](docs/screenshots/creature.png), [Genesis Lab](docs/screenshots/lab.png).
+Screenshots: [watch](docs/screenshots/creature.png),
+[launcher](docs/screenshots/launcher.png), [separate lab](docs/screenshots/lab.png).
 
-## Run on Ubuntu 24.04
+## Desktop: Ubuntu 24.04
 
-Prerequisites: CMake >= 3.24, Ninja, GCC 13 or a compatible C++20 compiler, Python 3
-and SDL2 development files at version 2.30.0. SQLite and LVGL are fetched as
-hash-pinned source archives; no global SQLite installation is necessary.
-If SDL2 development files are unavailable, add `-DDAEMON_SYSTEM_SDL=OFF` during
-configuration to build its pinned source locally. System packages are never
-installed by the project.
+Prerequisites: CMake >=3.24, Ninja, GCC 13-compatible C++20, Python 3.12 and SDL2
+2.30.0 development files. SQLite 3.50.4 and LVGL 9.2.2 are hash-pinned local source
+builds. Add `-DDAEMON_SYSTEM_SDL=OFF` to build pinned SDL2 locally as CI does.
+No system packages are installed by the project.
 
 ```sh
 cmake --preset desktop
@@ -26,71 +24,92 @@ ctest --preset desktop
 ./build/desktop/daemon_sim
 ```
 
-Two windows open: the **410 x 502 watch** and a separate **Genesis Lab** panel.
-Open Ember, feed, pet or rest. Open Clock or Settings from Home. The lab can jump
-one hour, accelerate time, inject steps/battery/charging, toggle simulated
-connectivity, inject storage failures, suspend and wake. `H` goes home, `Esc`
-goes back and `Space` wakes the display. Close either window to save and exit.
-The clock displays UTC explicitly; host-local timezone and DST are future work.
-
-The creature's identity and needs survive restart in `var/simulator/sd/creature.sqlite`.
-A minimal independent checkpoint lives in `var/simulator/flash/identity.checkpoint`.
-These are local equivalents of MicroSD and internal flash, not validated embedded
-storage adapters. Copy/export personal data only deliberately; it is Git-ignored.
+Open Familiar, Clock or Settings. Feed, pet and rest work offline. The familiar
+remains **Ember** by default; identity and memories belong to the local device.
+Two windows show the 410 × 502 watch and a separate 460 × 960 Habitat Lab.
+`H` opens Home, `Esc` goes back, `Space` wakes the display. Close either window
+to save. The clock explicitly uses UTC.
 
 ```sh
-./build/desktop/daemon_sim --headless --frames 120 --epoch 1700000000 \
-  --seed 42 --data-dir /tmp/daemonos-demo --screenshot /tmp/daemonos.bmp \
-  --report /tmp/daemonos.json
+./build/desktop/daemon_sim --name Nyx --agent config/agent.md
+./build/desktop/daemon_sim --headless --frames 240 --epoch 1700000000 \
+  --seed 42 --data-dir /tmp/daemon-habitat --report /tmp/habitat.json \
+  --screenshot /tmp/watch.bmp --debug-screenshot /tmp/lab.bmp
+```
 
+The lab injects time, battery/charging/motion, connection/storage faults, memory
+pressure, finite peripheral leases and sleep/wake. It shows service/wake-lock
+ownership, memory reservations/peaks, queue use, FPS, store operations, cognitive
+lifecycle and wake history. Developer controls stay outside the watch UI.
+
+## ESP32-S3: project-local SDK and tools
+
+```sh
+python3 tools/bootstrap_embedded.py
+python3 tools/idf.py build
+python3 tools/firmware_report.py
+```
+
+The pinned SDK/toolchain/venv live in `.cache`; artifacts live in `build/firmware`.
+The build produces `daemonos_firmware.bin` and an ELF/map, with 16 MiB flash,
+dual 4 MiB OTA slots, QSPI PSRAM, FreeRTOS tickless idle and ESP power management.
+See [embedded build instructions](docs/embedded-build.md) before using it.
+
+The firmware links the shared runtime/view, NVS minimum-state adapter and SQLite
+readiness component. Persistent SD SQLite access and physical display/input,
+audio, radio, sensors and explicit deep sleep are **unsupported**. No flashing
+or hardware operation has been validated. It cannot yet function as a watch.
+
+## Habitat behavior
+
+- The original four applications, deterministic needs, sprite, interactions,
+  native SQLite authority, migrations, pagination, export and recovery remain.
+- One view/controller implementation serves both targets. Partial redraw uses
+  bounded buffers and changed regions; the watch performs no flushes asleep.
+- Deadline-driven execution replaces unconditional frame work. Platforms block
+  when idle; the creature catches up from elapsed time on wake/reboot.
+- A central power service coordinates service masks, application suspension and
+  finite generation-safe RAII wake locks with expiry diagnostics.
+- Resource categories/pools enforce caps, headroom and allocation reservations;
+  memory pressure cancels cognition, denies optional reservations and trims cache.
+- Versioned Awakening response v2 supports silence, expression/voice parameters,
+  memory candidates and future personality/intention proposals. Outputs remain
+  untrusted and capability checked. Only the streaming mock is implemented.
+
+Desktop state is in `var/simulator/sd/creature.sqlite`, with a minimum independent
+checkpoint in `var/simulator/flash/identity.checkpoint`. Both are Git-ignored.
+The firmware currently uses NVS for minimum state/settings, not full history.
+The local [agent configuration](config/agent.md) is optional guidance, not an
+external source of authority. No phone, server, cloud or model is mandatory.
+
+## Verification and structure
+
+```sh
+cmake --preset release -DDAEMON_SYSTEM_SDL=OFF
+cmake --build --preset release
+ctest --test-dir build/release --output-on-failure
 cmake --preset sanitize
 cmake --build --preset sanitize
 ctest --preset sanitize
+python3 tools/analyze.py --build-dir build/desktop
 python3 tools/check_architecture.py
+python3 tools/energy_budget.py
 ```
 
-`--help` lists CLI options. UI scripts inject real SDL mouse events, not direct
-domain mutations. See [the simulator guide](docs/simulator.md). The test suite
-covers restart, offline catch-up, transactional rollback, export, corruption,
-checkpoint recovery, cognitive validation and actual LVGL navigation.
+`core/` owns domain/framework/services, `presentation/` the shared LVGL watch,
+`simulator/` SDL and lab, `firmware/` ESP-IDF adapters, `protocol/` versioned
+contracts, `config/` agent guidance, and `tests/` deterministic regression/fault
+checks. Android remains an optional integration contract.
 
-## What Genesis implements
+Read [actual verification results](docs/verification.md),
+[architecture](docs/architecture/overview.md), [power policy](docs/architecture/power.md),
+[resource budgets](docs/architecture/resources.md), [persistence/recovery](docs/architecture/persistence.md),
+[hardware matrix](docs/hardware/compatibility-matrix.md), [roadmap](docs/roadmap/roadmap.md)
+and [AGENTS.md](AGENTS.md). Genesis evidence is [archived](docs/verification-genesis.md).
 
-- Portable C++20 runtime, bounded events and services, static application registry,
-  lifecycle and navigation; four independently registered applications.
-- Original replaceable pixel familiar, efficient idle animation, local interactions
-  and a deterministic needs engine with minute resolution and autonomous rest.
-- Injectable clocks/randomness, virtual time, simulated device conditions and
-  a power-policy state machine. Offline catch-up is capped at seven days.
-- SQLite authority with two schema migrations, transactions, bounded memory pages,
-  recency/importance/text/tag/entity retrieval, consistent export and recovery.
-- Incremental mock cognitive responses, bounded context, request rate/timeout/
-  cancellation/backoff and fail-closed capability validation. No network is needed.
-- CMake presets, Linux CI, sanitizer configuration and architecture checks.
+The five-day design objective and three-day desirable minimum are hypotheses,
+not battery results. The [parametric model](docs/architecture/energy-budget.md)
+labels every assumed current and separates them from physical measurements.
 
-## Repository map and boundaries
-
-```text
-core/          portable domain, services, application runtime and desktop adapters
-simulator/     LVGL presentation and SDL display/touch implementation
-firmware/      ESP-IDF integration seed and documented board mapping (unvalidated)
-android/       optional Kotlin/Compose bridge contract (not implemented)
-protocol/      versioned protocol design, schemas and examples
-assets/        original provisional sprite and replaceable visual resources
-tests/         domain, persistence, faults and SDL/LVGL integration
-tools/         architecture checks and resource inspection
-docs/          architecture, ADRs, hardware evidence, verification and roadmap
-```
-
-The watch core never imports SDL, LVGL, SQLite or ESP-IDF. The UI sends events;
-Android and real inference will be adapters. There is no mandatory phone, backend
-or cloud. BLE/Wi-Fi transports, speech/audio, advanced autobiographical cognition,
-OTA, full service supervision and physical drivers remain future work.
-
-Read [architecture](docs/architecture/overview.md), [resource budgets](docs/architecture/resources.md),
-[persistence/recovery](docs/architecture/persistence.md), [hardware evidence](docs/hardware/t-watch-ultra.md),
-[verification results](docs/verification.md), [roadmap](docs/roadmap/roadmap.md) and
-[AGENTS.md](AGENTS.md) before extending the system.
-
-Source code and original assets are licensed under [MIT](LICENSE).
-Dependencies retain their [upstream licenses](docs/dependencies.md).
+Source and original assets use [MIT](LICENSE); dependencies retain their
+[upstream licenses and pinned versions](docs/dependencies.md).

@@ -1,0 +1,15 @@
+{
+  "v": 2,
+  "speech": null,
+  "emotion": "calm",
+  "intensity": 0.2,
+  "facial_expression": "neutral",
+  "animation": "idle",
+  "voice": null,
+  "actions": [
+    "animate"
+  ],
+  "memory_candidates": [],
+  "personality_adjustments": [],
+  "intentions": []
+}

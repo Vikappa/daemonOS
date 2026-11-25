@@ -18,7 +18,12 @@ for path in (root / "protocol").rglob("*.json"):
         json.loads(path.read_text())
     except ValueError as error:
         violations.append(f"{path.relative_to(root)}: invalid JSON: {error}")
+for path in (root / "presentation").rglob("*"):
+    if path.suffix in {".cpp", ".hpp"}:
+        for line_no,line in enumerate(path.read_text().splitlines(),1):
+            if re.search(r"#\s*include\s*[<\"](?:SDL|esp_|freertos|daemon/platform)",line):
+                violations.append(f"{path.relative_to(root)}:{line_no}: platform dependency in shared presentation")
 if violations:
     print("\n".join(violations), file=sys.stderr)
     sys.exit(1)
-print("PASS: portable core dependency boundaries and protocol JSON syntax")
+print("PASS: portable core, shared presentation dependency boundaries and protocol JSON syntax")

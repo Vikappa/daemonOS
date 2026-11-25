@@ -12,7 +12,7 @@ Application* ApplicationRegistry::get(AppId id) const {
 }
 Navigation::~Navigation() {
     transitioning_ = true;
-    if (auto* app = foreground()) app->pause();
+    if (auto* app = foreground(); app && !suspended_) app->pause();
     while (size_) stack_[--size_]->stop();
 }
 bool Navigation::push(AppId id) {
@@ -21,9 +21,9 @@ bool Navigation::push(AppId id) {
     if (!app || size_ == stack_.size()) return false;
     for (std::size_t i = 0; i < size_; ++i) if (stack_[i] == app) return false;
     transitioning_ = true;
-    if (auto* current = foreground()) current->pause();
+    if (auto* current = foreground(); current && !suspended_) current->pause();
     stack_[size_++] = app;
-    app->start(); app->resume();
+    app->start(); if (!suspended_) app->resume();
     transitioning_ = false;
     return true;
 }
@@ -32,11 +32,18 @@ bool Navigation::back() {
     auto* next = stack_[size_ - 2];
     if (!next) return false;
     transitioning_ = true;
-    stack_[size_ - 1]->pause(); stack_[--size_]->stop();
-    next->resume();
+    if (!suspended_) stack_[size_ - 1]->pause();
+    stack_[--size_]->stop();
+    if (!suspended_) next->resume();
     transitioning_ = false;
     return true;
 }
 void Navigation::home() { while (back()) {} }
 Application* Navigation::foreground() const { return size_ ? stack_[size_ - 1] : nullptr; }
+void Navigation::suspend(bool suspended) {
+    if (suspended_==suspended || transitioning_) return;
+    transitioning_=true; suspended_=suspended;
+    if (auto* app=foreground()) { if (suspended) app->pause(); else app->resume(); }
+    transitioning_=false;
+}
 }

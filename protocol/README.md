@@ -80,3 +80,24 @@ IMA-ADPCM and Opus are candidates pending CPU/RAM/latency/quality/BLE measuremen
 Stop/cancel must stop capture, playback and queued animation work. The bridge's
 STT/TTS adapters are interchangeable. Real speech, audio sync, VAD and codecs are
 deferred to Voice. See [Opus reference documentation](https://opus-codec.org/docs/).
+
+## Habitat / Awakening response v2
+
+`schemas/cognitive-v2.schema.json` is the current mock response contract;
+`examples/cognitive-silent-v2.json` demonstrates a response with no speech.
+Legacy five-field v1 remains accepted for compatibility. V2 requires explicit
+version, nullable speech, emotion/intensity, facial expression, animation,
+nullable bounded voice parameters, known actions and bounded proposal arrays.
+At most four unique actions and two candidates of each proposal kind fit within
+2048 raw bytes. Personality deltas are at most 0.05 per distinct trait; intentions
+are relative delays of 1..604800 seconds. Unknown/duplicate fields, invalid UTF-8,
+non-finite numbers, unknown enums, unsupported escapes and oversized data fail.
+The bounded decoder supports raw UTF-8 and ordinary quote/backslash/newline/tab
+escapes; Unicode escape sequences are deliberately rejected in Habitat.
+
+The watch validates every capability before effects. Current creature permissions
+allow animate, text speech and memory proposals. Personality/intention execution
+is denied even when syntax is valid; neither changes permissions or identity.
+Voice parameters do not start audio. Agent guidance is local, <=1023 bytes;
+context also contains persistent name/identity, personality, body/emotion state,
+trigger and selected memories. No real provider is added in Habitat.

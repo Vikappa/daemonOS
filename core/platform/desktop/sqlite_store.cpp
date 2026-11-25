@@ -11,7 +11,7 @@ public: DbError(int error_code, const char* message) : std::runtime_error(messag
 Status db_status(const DbError& error) {
     const int code = error.code & 0xff;
     return Status::fail(code == SQLITE_CORRUPT || code == SQLITE_NOTADB ? Error::corrupt :
-                        code == SQLITE_BUSY || code == SQLITE_LOCKED ? Error::busy : Error::io, error.what());
+                        code == SQLITE_BUSY || code == SQLITE_LOCKED || code == SQLITE_INTERRUPT ? Error::busy : Error::io, error.what());
 }
 void check(sqlite3* db, int result) { if (result != SQLITE_OK) throw DbError(result, sqlite3_errmsg(db)); }
 void exec(sqlite3* db, const char* sql) { check(db, sqlite3_exec(db, sql, nullptr, nullptr, nullptr)); }
@@ -41,6 +41,14 @@ public:
     ~Transaction() { if (!committed_) sqlite3_exec(db_, "ROLLBACK", nullptr, nullptr, nullptr); }
     void commit() { exec(db_, "COMMIT"); committed_ = true; }
 private: sqlite3* db_; bool committed_{};
+};
+class QueryBudget {
+public:
+    explicit QueryBudget(sqlite3* db):db_(db) {
+        sqlite3_progress_handler(db_,1000,+[](void* self)->int { return --static_cast<QueryBudget*>(self)->remaining_<=0 ? 1 : 0; },this);
+    }
+    ~QueryBudget() { sqlite3_progress_handler(db_,0,nullptr,nullptr); }
+private: sqlite3* db_; int remaining_{100}; // At most ~100,000 VM instructions.
 };
 constexpr const char* migration1 = R"SQL(
 CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL);
@@ -107,6 +115,11 @@ SqliteStore::SqliteStore(const std::filesystem::path& path) : impl_(std::make_un
 }
 SqliteStore::~SqliteStore() = default;
 std::string_view SqliteStore::version() { return sqlite3_libversion(); }
+Status SqliteStore::configure_heap(void* memory,std::size_t size) {
+    if (!memory || size>static_cast<std::size_t>(std::numeric_limits<int>::max())) return Status::fail(Error::invalid,"invalid SQLite heap");
+    return sqlite3_config(SQLITE_CONFIG_HEAP,memory,static_cast<int>(size),32)==SQLITE_OK ? Status{} : Status::fail(Error::busy,"SQLite heap must be configured before initialization");
+}
+Status SqliteStore::shutdown() { return sqlite3_shutdown()==SQLITE_OK ? Status{} : Status::fail(Error::busy,"SQLite connections still active"); }
 Status SqliteStore::integrity() {
     if (!impl_->ready) return impl_->ready;
     if (!available_) return Status::fail(Error::io, "simulated MicroSD fault");
@@ -115,6 +128,11 @@ Status SqliteStore::integrity() {
         if (query.row() && query.text(0) == "ok") return {};
         return Status::fail(Error::corrupt, "database integrity check failed");
     } catch (const DbError& e) { return db_status(e); }
+}
+Status SqliteStore::trim() {
+    if (!impl_->ready) return impl_->ready;
+    if (!available_) return Status::fail(Error::io,"storage unavailable");
+    return sqlite3_db_release_memory(impl_->db)==SQLITE_OK ? Status{} : Status::fail(Error::io,"SQLite cache release failed");
 }
 Status SqliteStore::load(CreatureState& state, Settings& settings) {
     if (!impl_->ready) return impl_->ready;
@@ -182,6 +200,7 @@ Status SqliteStore::memories(std::string_view query, std::size_t offset, MemoryP
     if (!available_) return Status::fail(Error::io, "simulated MicroSD read failure");
     if (query.size() > 96 || offset > 10000) return Status::fail(Error::invalid, "memory query budget exceeded");
     try {
+        QueryBudget budget(impl_->db);
         Statement q(impl_->db, "SELECT id,timestamp,category,content,provenance,importance,valence,recall_count,last_recall,tags,entities,summary "
             "FROM memories WHERE ?1='' OR instr(lower(content),lower(?1))>0 OR instr(lower(tags),lower(?1))>0 OR instr(lower(entities),lower(?1))>0 "
             "ORDER BY (importance*0.6 + 0.4/(1.0 + max(0,?2-timestamp)/86400.0)) DESC,timestamp DESC,id DESC LIMIT 8 OFFSET ?3");
@@ -194,13 +213,14 @@ Status SqliteStore::memories(std::string_view query, std::size_t offset, MemoryP
             auto& m = page.items[page.size]; m = {};
             m.id=q.integer(0); m.timestamp=q.integer(1);
             if (!m.category.assign(q.text(2)) || !m.content.assign(q.text(3)) || !m.provenance.assign(q.text(4)) ||
-                !m.tags.assign(q.text(9)) || !m.entities.assign(q.text(10)) || !m.summary.assign(q.text(11)))
-                return Status::fail(Error::corrupt, "persisted memory exceeds limits");
+                !m.tags.assign(q.text(9)) || !m.entities.assign(q.text(10)) || !m.summary.assign(q.text(11))) {
+                page.size=0; return Status::fail(Error::corrupt, "persisted memory exceeds limits");
+            }
             m.importance=q.real(5); m.valence=q.real(6); m.recall_count=static_cast<std::uint32_t>(q.integer(7)); m.last_recall=q.integer(8);
             ++page.size;
         }
         return {};
-    } catch (const DbError& e) { return db_status(e); }
+    } catch (const DbError& e) { page.size=0; return db_status(e); }
 }
 Status SqliteStore::backup(std::string_view destination) {
     if (!impl_->ready) return impl_->ready;

@@ -1,12 +1,16 @@
 #pragma once
 #include "daemon/hal/interfaces.hpp"
 #include "daemon/services/store.hpp"
+#include "daemon/services/resources.hpp"
 #include <chrono>
 #include <filesystem>
 #include <memory>
 #include <random>
 
 namespace daemonos::desktop {
+class Allocator final : public MemoryAllocator {
+public: void* allocate(std::size_t bytes,MemoryPool pool) override; void release(void* memory) override;
+};
 class VirtualClock final : public hal::Clock {
 public:
     explicit VirtualClock(std::int64_t epoch);
@@ -32,6 +36,7 @@ private: std::mt19937 generator_;
 };
 class SqliteStore final : public StateStore {
 public:
+    std::string_view backend_name() const override { return "SQLite / local authority"; }
     explicit SqliteStore(const std::filesystem::path& path);
     ~SqliteStore() override;
     SqliteStore(const SqliteStore&) = delete;
@@ -42,7 +47,10 @@ public:
     Status backup(std::string_view destination) override;
     void available(bool value) override { available_ = value; }
     Status integrity();
+    Status trim() override;
     static std::string_view version();
+    static Status configure_heap(void* memory,std::size_t size);
+    static Status shutdown();
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

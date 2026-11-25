@@ -5,6 +5,10 @@
 *.bmp
 *.ppm
 /compile_commands.json
+/firmware/sdkconfig
+/firmware/sdkconfig.old
+/firmware/dependencies.lock
+/firmware/managed_components/
 /.agents/
 /.aws/
 /.codex/

@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <limits>
 
 namespace daemonos {
 class Scheduler {
@@ -23,6 +24,11 @@ public:
             }
         }
         return count;
+    }
+    std::int64_t next_deadline() const {
+        auto result=std::numeric_limits<std::int64_t>::max();
+        for (const auto& task:tasks_) if (task.active && task.due<result) result=task.due;
+        return result;
     }
 private:
     struct Task { std::uint32_t id{}; std::int64_t due{}; Callback callback{}; void* context{}; std::uint64_t generation{}; bool active{}; };

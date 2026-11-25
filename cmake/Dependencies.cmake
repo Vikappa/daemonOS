@@ -18,7 +18,7 @@ function(daemon_sqlite_dependency)
   target_include_directories(sqlite3 PUBLIC ${sqlite_SOURCE_DIR})
   target_compile_definitions(sqlite3 PRIVATE SQLITE_THREADSAFE=1
     SQLITE_DEFAULT_CACHE_SIZE=-128 SQLITE_DEFAULT_MEMSTATUS=0
-    SQLITE_DQS=0 SQLITE_OMIT_LOAD_EXTENSION SQLITE_OMIT_DEPRECATED)
+    SQLITE_DQS=0 SQLITE_OMIT_LOAD_EXTENSION SQLITE_OMIT_DEPRECATED SQLITE_ENABLE_MEMSYS5)
   target_link_libraries(sqlite3 PRIVATE ${CMAKE_DL_LIBS} m)
 endfunction()
 
@@ -34,7 +34,7 @@ function(daemon_gui_dependencies)
       36e2e41557e0fa4a1519315c0f5958a87ccb27e25c51776beb6f1239526447b0)
     FetchContent_MakeAvailable(sdl)
   endif()
-  set(LV_CONF_PATH "${PROJECT_SOURCE_DIR}/simulator/lv_conf.h" CACHE STRING "" FORCE)
+  set(LV_CONF_PATH "${PROJECT_SOURCE_DIR}/presentation/lv_conf.h" CACHE STRING "" FORCE)
   set(LV_CONF_BUILD_DISABLE_EXAMPLES ON CACHE BOOL "" FORCE)
   set(LV_CONF_BUILD_DISABLE_DEMOS ON CACHE BOOL "" FORCE)
   set(LV_CONF_BUILD_DISABLE_THORVG_INTERNAL ON CACHE BOOL "" FORCE)
