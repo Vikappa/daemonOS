@@ -10,7 +10,7 @@ constexpr std::uint32_t orange = 0xff7547, white = 0xe9e6df, muted = 0x8b939c, g
 void text(lv_obj_t* object, const char* value) { if (object && std::string_view{lv_label_get_text(object)} != value) lv_label_set_text(object,value); }
 }
 Ui::Ui(Runtime& runtime, desktop::VirtualClock& clock, SdlDisplay& watch, SdlDisplay& debug)
-    : runtime_(runtime), clock_(clock), watch_(watch), debug_(debug), controller_(runtime,clock), view_(controller_,watch.lv_display(),presentation::ember_sprite()) {
+    : runtime_(runtime), clock_(clock), watch_(watch), debug_(debug), controller_(runtime,clock), view_(controller_,watch.lv_display()) {
     build_debug();
     lv_timer_pause(lv_display_get_refr_timer(debug_.lv_display()));
 }

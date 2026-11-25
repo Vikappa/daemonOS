@@ -51,18 +51,12 @@ target_link_libraries(daemon_resources PRIVATE daemon_core daemon_options)
 
 if(DAEMON_BUILD_SIMULATOR)
   daemon_gui_dependencies()
-  find_package(Python3 REQUIRED COMPONENTS Interpreter)
-  add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated/ember_pixels.hpp
-    COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/compile_sprite.py
-      ${PROJECT_SOURCE_DIR}/assets/sprites/ember.sprite ${CMAKE_CURRENT_BINARY_DIR}/generated/ember_pixels.hpp
-    DEPENDS assets/sprites/ember.sprite tools/compile_sprite.py)
-  add_library(daemon_presentation presentation/watch_view.cpp presentation/assets.cpp ${CMAKE_CURRENT_BINARY_DIR}/generated/ember_pixels.hpp)
-  target_include_directories(daemon_presentation PUBLIC presentation/include PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
+  add_library(daemon_presentation presentation/watch_view.cpp presentation/ember_sprite.cpp)
+  target_include_directories(daemon_presentation PUBLIC presentation/include)
   target_link_libraries(daemon_presentation PUBLIC daemon_core lvgl PRIVATE daemon_options)
   add_executable(daemon_sim simulator/main.cpp simulator/ui.cpp simulator/sdl_hal.cpp)
   target_include_directories(daemon_sim PRIVATE simulator)
   target_link_libraries(daemon_sim PRIVATE daemon_desktop daemon_presentation SDL2::SDL2 daemon_options)
-  target_compile_definitions(daemon_sim PRIVATE DAEMON_ASSET_DIR="${PROJECT_SOURCE_DIR}/assets")
   target_compile_definitions(daemon_sim PRIVATE DAEMON_DEFAULT_AGENT="${PROJECT_SOURCE_DIR}/config/agent.md")
 endif()
 

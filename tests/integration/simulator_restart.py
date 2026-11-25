@@ -10,12 +10,12 @@ import tempfile
 binary = str(pathlib.Path(sys.argv[1]).resolve())
 with tempfile.TemporaryDirectory(prefix="daemonos-ui-") as directory:
     root = pathlib.Path(directory)
-    def run(name, epoch, commands, frames=240, backup=False):
+    def run(name, epoch, commands, frames=240, backup=False, device="device"):
         script = root / f"{name}.script"
         script.write_text(commands)
         report = root / f"{name}.json"
         screenshot = root / f"{name}.bmp"
-        args = [binary, "--headless", "--data-dir", str(root / "device"),
+        args = [binary, "--headless", "--data-dir", str(root / device),
                 "--frames", str(frames), "--epoch", str(epoch), "--seed", "42",
                 "--script", str(script), "--report", str(report), "--screenshot", str(screenshot)]
         if backup:
@@ -73,4 +73,39 @@ click wake
     (root / "device/sd/creature.sqlite").write_bytes(b"corrupt card")
     recovered = run("recovered", 1700046802, "click open_creature\n", frames=40)
     assert recovered["id"] == first["id"], recovered
-print("PASS: SDL/LVGL mouse navigation, interactions, mock streaming, restart, export, storage faults and checkpoint recovery")
+
+    def face_pixels(name, commands, box):
+        # Fresh devices and equal frame counts keep the face outside its blink window.
+        run(name, 1700000000, commands, frames=80, device=name)
+        bmp = (root / f"{name}.bmp").read_bytes()
+        offset = struct.unpack_from("<I", bmp, 10)[0]
+        width, height = struct.unpack_from("<ii", bmp, 18)
+        assert struct.unpack_from("<H", bmp, 28)[0] == 32
+        left, top, right, bottom = box
+        rows = [offset + ((height - 1 - y) * width + left) * 4 for y in range(top, bottom)]
+        return b"".join(bmp[start:start + (right - left) * 4] for start in rows)
+
+    meet = "click open_creature\n"
+    creature_box = (80, 112, 330, 276)
+    calm = face_pixels("calm", meet, creature_box)
+    def pixel(image, x, y):
+        left, top, right, _ = creature_box
+        i = ((y - top) * (right - left) + x - left) * 4
+        return image[i:i + 4]
+
+    background = pixel(calm, 133, 128)
+    assert pixel(calm, 169, 200) == pixel(calm, 193, 236) == background, (
+        "The eye and mouth cutouts must reveal the same LCD background as the area outside the head"
+    )
+    assert pixel(calm, 133, 188) != background, "The head must be filled"
+    happy = face_pixels("happy", meet + "click pet\n", creature_box)
+    assert happy != calm, "Pet must change the pixels in the face"
+    assert face_pixels("expired", meet + "click pet\nadvance 3\n", creature_box) == calm
+    assert face_pixels("mock", meet + "click network\nclick think\n", creature_box) == happy
+    resting = face_pixels("resting", meet + "click rest\n", creature_box)
+    charging = face_pixels("charging", meet + "click charge\n", creature_box)
+    assert len({calm, happy, resting, charging}) == 4
+    launcher_box = (216, 193, 389, 308)
+    home = face_pixels("home-calm", "", launcher_box)
+    assert face_pixels("home-happy", meet + "click pet\nclick home\n", launcher_box) != home
+print("PASS: SDL/LVGL navigation, face rendering, mock streaming, restart, export and storage recovery")

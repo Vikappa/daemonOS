@@ -5,6 +5,13 @@
 
 namespace daemonos {
 namespace {
+std::optional<CreatureFace> emotion_face(std::string_view emotion) {
+    if (emotion == "calm") return CreatureFace::calm;
+    if (emotion == "happy") return CreatureFace::happy;
+    if (emotion == "sad") return CreatureFace::sad;
+    if (emotion == "curious") return CreatureFace::curious;
+    return std::nullopt;
+}
 bool valid_utf8(std::string_view text) {
     for (std::size_t i=0;i<text.size();) {
         const auto first=static_cast<unsigned char>(text[i++]);
@@ -226,7 +233,7 @@ void CognitiveScheduler::complete(std::int64_t now, bool success) {
 Status ActionValidator::validate(const CognitiveResponse& r, Capabilities allowed) {
     if (r.action_count > r.actions.size() || !std::isfinite(r.intensity) || r.intensity < 0 || r.intensity > 1)
         return Status::fail(Error::invalid, "invalid cognitive values");
-    if (r.emotion.view() != "calm" && r.emotion.view() != "happy" && r.emotion.view() != "sad" && r.emotion.view() != "curious")
+    if (!emotion_face(r.emotion.view()))
         return Status::fail(Error::invalid, "unsupported emotion");
     if (r.animation.view() != "idle" && r.animation.view() != "sleep" && r.animation.view() != "happy")
         return Status::fail(Error::invalid, "unsupported animation");
@@ -264,9 +271,18 @@ Status ActionValidator::validate(const CognitiveResponse& r, Capabilities allowe
 }
 Status CapabilityExecutor::execute(const CognitiveResponse& r, Capabilities allowed) {
     if (auto status = ActionValidator::validate(r, allowed); !status) return status;
+    face_cue_.reset();
     for (std::size_t i = 0; i < r.action_count; ++i) {
         if (r.actions[i] == Capability::speak) speech_ = r.speech;
-        if (r.actions[i] == Capability::animate) animation_ = r.animation;
+        if (r.actions[i] == Capability::animate) {
+            animation_ = r.animation;
+            if (animation_.view() == "sleep") face_cue_ = CreatureFace::resting;
+            else if (animation_.view() == "happy") face_cue_ = CreatureFace::happy;
+            else if (r.facial_expression.view() == "smile") face_cue_ = CreatureFace::happy;
+            else if (r.facial_expression.view() == "sleepy") face_cue_ = CreatureFace::tired;
+            else if (r.facial_expression.view() == "concerned") face_cue_ = CreatureFace::sad;
+            else face_cue_ = emotion_face(r.emotion.view());
+        }
     }
     return {};
 }

@@ -1,13 +1,9 @@
 # Original provisional assets
 
-`sprites/ember.sprite` is original DæmonOS pixel art under the repository MIT
-license. It is a 32 x 32 text palette: dot transparent, x shadow, r red, o orange,
-h highlight, e eye, b dark. The asset compiler validates dimensions <=48 x 48 and
-compiles it into the same flash-resident pixels for desktop and firmware,
-independently of creature logic. Replace the source and rebuild without modifying
-the needs engine or persistence. The initial idle animation is a bounded vertical bob;
-rest dims the sprite and freezes the animation. No licensed character assets
-or permanent visual identity are implied.
+The familiar's original 13 x 12 LCD cat face is encoded in
+`presentation/ember_sprite.cpp` and distributed under the repository MIT license.
+All expressions share the same silhouette. Eyes and mouth are gaps that reveal
+the green LCD background. The same masks are compiled for simulator and firmware.
 
 Fonts in the simulator are the Montserrat assets included with the pinned LVGL
 dependency; preserve its bundled notices when redistributing. `fonts`, `audio`

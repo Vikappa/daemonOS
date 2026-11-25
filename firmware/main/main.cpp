@@ -62,7 +62,7 @@ extern "C" void app_main() {
     lv_display_set_buffers(display,draw.data(),nullptr,static_cast<std::uint32_t>(draw.bytes().size()),LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_flush_cb(display,flush);
     presentation::WatchController controller(*runtime,clock);
-    presentation::WatchView view(controller,display,presentation::ember_sprite());
+    presentation::WatchView view(controller,display);
     QueueHandle_t queue=xQueueCreateStatic(budget::events,sizeof(Event),event_queue_data,&event_queue_control);
     esp_pm_lock_handle_t cpu_lock=nullptr;
     ESP_ERROR_CHECK(esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX,0,"daemon-work",&cpu_lock));

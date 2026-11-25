@@ -9,8 +9,8 @@ void text(lv_obj_t* object,const char* value) {
     if (object && std::string_view{lv_label_get_text(object)}!=value) lv_label_set_text(object,value);
 }
 }
-WatchView::WatchView(WatchController& controller,lv_display_t* display,const lv_image_dsc_t& sprite)
-    : controller_(controller),display_(display),sprite_descriptor_(sprite) {
+WatchView::WatchView(WatchController& controller,lv_display_t* display)
+    : controller_(controller),display_(display) {
     build(); lv_timer_pause(lv_display_get_refr_timer(display_));
 }
 void WatchView::clicked(lv_event_t* event) {
@@ -48,11 +48,54 @@ lv_obj_t* WatchView::button(lv_obj_t* parent, const char* caption, const char* i
     lv_obj_add_event_cb(object,clicked,LV_EVENT_CLICKED,&binding);
     return object;
 }
+void WatchView::draw_sprite(lv_event_t* event) {
+    constexpr auto width = static_cast<int>(ember_width);
+    constexpr auto height = static_cast<int>(ember_height);
+    const auto& pixels = static_cast<const WatchView*>(lv_event_get_user_data(event))->sprite_pixels_;
+    auto* object = lv_event_get_current_target_obj(event);
+    auto* layer = lv_event_get_layer(event);
+    lv_area_t bounds{};
+    lv_obj_get_coords(object, &bounds);
+    const int cell = lv_obj_get_width(object) / width;
+    lv_draw_rect_dsc_t ink{};
+    lv_draw_rect_dsc_init(&ink);
+    ink.bg_color = lv_color_hex(0x1f281a);
+    for (int y = 0; y < height; ++y) {
+        const auto row = static_cast<std::size_t>(y * width);
+        auto active = [&](int x) { return pixels[row + static_cast<std::size_t>(x)]; };
+        for (int x = 0; x < width;) {
+            if (!active(x)) { ++x; continue; }
+            const int start = x++;
+            while (x < width && active(x)) ++x;
+            const lv_area_t run{bounds.x1 + start * cell, bounds.y1 + y * cell,
+                                bounds.x1 + x * cell - 1, bounds.y1 + (y + 1) * cell - 1};
+            lv_draw_rect(layer, &ink, &run);
+        }
+    }
+}
+void WatchView::place_sprite(lv_obj_t* parent, AppId app) {
+    constexpr std::uint32_t lcd_green = 0xc5e4c4;
+    constexpr int padding = 10;
+    const bool close_up = app == AppId::creature;
+    const int cell = close_up ? 12 : 6;
+    const int width = static_cast<int>(ember_width) * cell;
+    const int height = static_cast<int>(ember_height) * cell;
+    const int x = (close_up ? 205 : 300) - width / 2;
+    const int y = (close_up ? 194 : 250) - height / 2;
+    panel(parent, x - padding, y - padding, width + 2 * padding, height + 2 * padding, lcd_green);
+    sprite_ = lv_obj_create(parent);
+    lv_obj_remove_style_all(sprite_);
+    lv_obj_remove_flag(sprite_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_pos(sprite_, x, y);
+    lv_obj_set_size(sprite_, width, height);
+    lv_obj_add_event_cb(sprite_, draw_sprite, LV_EVENT_DRAW_MAIN, this);
+}
 void WatchView::build() {
     lv_display_set_default(display_);
     auto* root = lv_display_get_screen_active(display_); lv_obj_clean(root);
     binding_count_ = 0; watch_root_=root;
     time_label_=battery_label_=status_label_=message_label_=sprite_=clock_label_=date_label_=setting_label_=nullptr;
+    last_frame_.reset();
     bars_.fill(nullptr); values_.fill(nullptr);
     lv_obj_set_style_bg_color(root,lv_color_hex(0x000000),0); lv_obj_remove_flag(root,LV_OBJ_FLAG_SCROLLABLE);
     time_label_=label(root,"00:00",22,15,white,&lv_font_montserrat_12);
@@ -65,8 +108,7 @@ void WatchView::build() {
         label(root,"A SMALL FIRE.",24,67,white,&lv_font_montserrat_28);
         label(root,"A WORLD WITHIN.",24,101,orange,&lv_font_montserrat_28);
         label(root,"YOUR OFFLINE DIGITAL FAMILIAR",24,147,muted,&lv_font_montserrat_12);
-        sprite_ = lv_image_create(root); lv_image_set_src(sprite_,&sprite_descriptor_);
-        lv_image_set_scale(sprite_,1152); lv_image_set_antialias(sprite_,false); lv_obj_set_pos(sprite_,280,239);
+        place_sprite(root, app);
         label(root,state.creature.name.c_str(),26,213,white,&lv_font_montserrat_20);
         label(root,"Identity held locally.\nInstincts always awake.",26,245,muted);
         auto* enter=button(root,"Meet familiar   >","open_creature",24,338,362,52,{EventType::open_app,3});
@@ -77,10 +119,7 @@ void WatchView::build() {
     } else if (app == AppId::creature) {
         label(root,state.creature.name.c_str(),22,57,white,&lv_font_montserrat_28);
         status_label_=label(root,"AWAKE / FAMILIAR 001",22,94,green,&lv_font_montserrat_12);
-        label(root,"+",28,146,0x49352f,&lv_font_montserrat_20);
-        label(root,"+",366,223,0x49352f,&lv_font_montserrat_20);
-        auto* shadow=panel(root,133,267,144,4,0x53251e); lv_obj_set_style_radius(shadow,LV_RADIUS_CIRCLE,0);
-        sprite_=lv_image_create(root); lv_image_set_src(sprite_,&sprite_descriptor_); lv_image_set_scale(sprite_,1280); lv_image_set_antialias(sprite_,false); lv_obj_set_pos(sprite_,189,177);
+        place_sprite(root, app);
         message_label_=label(root,"",22,280,white,&lv_font_montserrat_12); lv_obj_set_size(message_label_,366,32);
         constexpr std::array names{"SATIETY","ENERGY","AFFECTION","SPIRIT"};
         for (std::size_t i=0;i<4;++i) {
@@ -122,12 +161,23 @@ void WatchView::update(std::uint32_t real_ms) {
     if (!dirty_ && state.revision==last_revision_ && static_cast<std::int32_t>(real_ms-next_update_)<0) return;
     if (state.app != last_app_) build();
     last_revision_=state.revision; dirty_=false;
-    next_update_=real_ms + (state.creature.sleeping || state.app==AppId::clock || state.app==AppId::settings ? 1000U : 220U);
+    next_update_ = real_ms + 1000U;
     if (sprite_) {
-        const int offset=state.creature.sleeping ? 0 : static_cast<int>((real_ms / 220) % 6);
-        const int bob=offset < 3 ? offset : 5-offset;
-        lv_obj_set_y(sprite_,(last_app_ == AppId::creature ? 177 : 239) - bob);
-        lv_obj_set_style_image_opa(sprite_,state.creature.sleeping ? LV_OPA_60 : LV_OPA_COVER,0);
+        constexpr std::uint32_t blink_period_ms = 3700;
+        constexpr std::uint32_t blink_start_ms = 3570;
+        const bool can_blink = state.face != CreatureFace::resting && state.face != CreatureFace::happy;
+        const auto phase = real_ms % blink_period_ms;
+        const bool blink = can_blink && phase >= blink_start_ms;
+        const EmberFrame frame{state.face, blink};
+        if (frame != last_frame_) {
+            paint_face(sprite_pixels_, frame);
+            lv_obj_invalidate(sprite_);
+            last_frame_ = frame;
+        }
+        if (can_blink) {
+            const auto until_blink_edge = (blink ? blink_period_ms : blink_start_ms) - phase;
+            next_update_ = real_ms + std::min(1000U, until_blink_edge);
+        }
     }
     const auto epoch=static_cast<std::time_t>(state.wall_seconds); std::tm calendar{}; if (const auto* utc=std::gmtime(&epoch)) calendar=*utc;
     char buffer[512]{}; std::strftime(buffer,sizeof(buffer),"%H:%M UTC",&calendar); text(time_label_,buffer);

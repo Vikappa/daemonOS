@@ -92,6 +92,7 @@ struct Memory {
 };
 struct MemoryPage { std::array<Memory, budget::memory_page> items{}; std::size_t size{}; };
 enum class AppId : std::uint8_t { launcher, clock, settings, creature };
+enum class CreatureFace : std::uint8_t { calm, happy, sad, curious, hungry, tired, resting, thinking, charging };
 enum class EventType : std::uint8_t {
     feed, rest, pet, move, battery, charging, connectivity, storage, think,
     open_app, back, home, toggle_cognition, brightness, suspend, wake,

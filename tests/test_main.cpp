@@ -118,6 +118,14 @@ void response_validation() {
     CHECK(parser.finish(response)); CHECK(response.speech.view()=="hello"); CHECK(response.action_count==2);
     CapabilityExecutor executor; CHECK(!executor.execute(response,1)); CHECK(executor.speech().view().empty());
     CHECK(executor.execute(response,3)); CHECK(executor.speech().view()=="hello");
+    CHECK(executor.face_cue() == CreatureFace::happy);
+    response.action_count = 1; // speak alone cannot repeat the previous animate action
+    CHECK(executor.execute(response,3)); CHECK(!executor.face_cue());
+    response.actions[0] = Capability::animate;
+    response.emotion.assign("curious");
+    CHECK(executor.execute(response,3)); CHECK(executor.face_cue() == CreatureFace::curious);
+    response.animation.assign("sleep");
+    CHECK(executor.execute(response,3)); CHECK(executor.face_cue() == CreatureFace::resting);
     for (const auto invalid : {
         R"({"speech":"x","emotion":"happy","intensity":0.4,"animation":"idle","actions":["filesystem"]})",
         R"({"speech":"x","emotion":"happy","intensity":5,"animation":"idle","actions":[]})",
@@ -245,10 +253,29 @@ void runtime_cognition_cancel_and_complete() {
     Runtime runtime(clock,random,store,checkpoint,provider); CHECK(runtime.boot());
     runtime.post({EventType::think}); runtime.tick(); CHECK(!runtime.thinking());
     runtime.post({EventType::connectivity,1}); runtime.post({EventType::think}); runtime.tick(); CHECK(runtime.thinking());
+    CHECK(runtime.face() == CreatureFace::thinking);
     runtime.post({EventType::connectivity,0}); runtime.tick(); CHECK(!runtime.thinking());
+    CHECK(runtime.face() == CreatureFace::calm);
     clock.advance(120'000); runtime.post({EventType::connectivity,1}); runtime.post({EventType::think}); runtime.tick(); CHECK(runtime.thinking());
     for (int i=0;i<20;++i) { clock.advance(10); runtime.tick(); }
     CHECK(!runtime.thinking()); CHECK(runtime.message().starts_with("I am still here")); CHECK(valid(runtime.creature()));
+    CHECK(runtime.face() == CreatureFace::happy);
+    clock.advance(2500); runtime.tick(); CHECK(runtime.face() == CreatureFace::calm);
+}
+void runtime_faces() {
+    test::Clock clock; test::Random random; test::Store store; test::Checkpoint checkpoint; MockProvider provider;
+    store.state = initial(); store.state.needs.hunger = 82; store.exists = true;
+    Runtime runtime(clock,random,store,checkpoint,provider); CHECK(runtime.boot());
+    const auto send = [&](Event event) { CHECK(runtime.post(event)); runtime.tick(); };
+    CHECK(runtime.face() == CreatureFace::hungry);
+    send({EventType::pet}); CHECK(runtime.face() == CreatureFace::hungry);
+    send({EventType::feed}); CHECK(runtime.face() == CreatureFace::happy);
+    send({EventType::charging,1});
+    clock.advance(2499); runtime.tick(); CHECK(runtime.face() == CreatureFace::happy);
+    clock.advance(1); runtime.tick(); CHECK(runtime.face() == CreatureFace::charging);
+    send({EventType::move,100}); CHECK(runtime.face() == CreatureFace::curious);
+    send({EventType::rest}); CHECK(runtime.face() == CreatureFace::resting);
+    send({EventType::rest}); CHECK(runtime.face() == CreatureFace::charging);
 }
 void refuse_identity_replacement() {
     Temp temp; { std::ofstream file(temp.path/"bad.sqlite"); file<<"corrupt"; }
@@ -273,6 +300,7 @@ int main() {
         {"SQLite persistence pagination export",sqlite_roundtrip_and_backup},{"transaction rollback",sqlite_transaction_rollback},
         {"migrations and corruption",sqlite_migrations_and_corruption},{"checkpoint recovery",checkpoint_crc_and_recovery},
         {"offline restart and storage faults",runtime_offline_restart_faults},{"mock streaming and cancellation",runtime_cognition_cancel_and_complete},
+        {"creature face priorities and expiry",runtime_faces},
         {"identity preservation",refuse_identity_replacement},{"minimal checkpoint transfer",checkpoint_transfer_to_empty_media}};
     int failures=0;
     for (const auto& test:cases) {

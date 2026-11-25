@@ -24,7 +24,7 @@ contains the actual watch view, read-only state projection and event controller.
 Desktop and firmware link those same sources. The 410 × 502 watch layout is no
 longer duplicated in the simulator. SDL and the developer lab remain desktop
 adapters; FreeRTOS/NVS/ESP allocators and physical denial gates are embedded.
-The replaceable sprite is compiled from the same original palette source.
+The simulator and firmware compile the same LCD cat silhouette and expression masks.
 
 A single owning thread/task controls state, store access and LVGL. SDK interrupts
 and future workers deliver bounded value events through the platform handoff

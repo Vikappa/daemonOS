@@ -160,7 +160,7 @@ void shared_presentation_quiescence() {
     });
     {
         presentation::WatchController controller(runtime,clock);
-        presentation::WatchView view(controller,display,presentation::ember_sprite());
+        presentation::WatchView view(controller,display);
         view.update(0); CHECK(flushes>0); int x=0,y=0; CHECK(view.target("open_creature",x,y));
         controller.activate("open_creature",{EventType::open_app,3}); runtime.tick(); view.update(10); CHECK(view.target("feed",x,y));
         runtime.post({EventType::suspend}); runtime.tick(); view.update(20); const int stopped=flushes;

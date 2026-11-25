@@ -1,5 +1,7 @@
 #pragma once
 #include "daemon/framework/runtime.hpp"
+#include "daemon/presentation/ember_sprite.hpp"
+#include <optional>
 #include <lvgl.h>
 
 namespace daemonos::presentation {
@@ -8,6 +10,7 @@ struct WatchState {
     const Environment& environment;
     const Settings& settings;
     AppId app;
+    CreatureFace face;
     bool awake;
     std::string_view message;
     std::int64_t wall_seconds;
@@ -16,7 +19,7 @@ struct WatchState {
 class WatchController {
 public:
     WatchController(Runtime& runtime,hal::Clock& clock) : runtime_(runtime),clock_(clock) {}
-    WatchState state() const { return {runtime_.creature(),runtime_.environment(),runtime_.settings(),runtime_.app(),runtime_.display_awake(),runtime_.message(),clock_.wall_seconds(),runtime_.view_revision()}; }
+    WatchState state() const { return {runtime_.creature(),runtime_.environment(),runtime_.settings(),runtime_.app(),runtime_.face(),runtime_.display_awake(),runtime_.message(),clock_.wall_seconds(),runtime_.view_revision()}; }
     void activate(std::string_view id,Event event) {
         if (id=="brightness_down") event.value=runtime_.settings().brightness-10;
         if (id=="brightness_up") event.value=runtime_.settings().brightness+10;
@@ -25,10 +28,9 @@ public:
     }
 private: Runtime& runtime_; hal::Clock& clock_;
 };
-const lv_image_dsc_t& ember_sprite();
 class WatchView {
 public:
-    WatchView(WatchController& controller,lv_display_t* display,const lv_image_dsc_t& sprite);
+    WatchView(WatchController& controller,lv_display_t* display);
     void update(std::uint32_t real_ms);
     void invalidate() { dirty_=true; }
     std::uint32_t next_delay(std::uint32_t now) const { return !awake_ ? UINT32_MAX : dirty_ || static_cast<std::int32_t>(now-next_update_)>=0 ? 0 : next_update_-now; }
@@ -40,9 +42,12 @@ private:
     lv_obj_t* label(lv_obj_t*,const char*,int,int,std::uint32_t,const lv_font_t* = &lv_font_montserrat_14);
     lv_obj_t* panel(lv_obj_t*,int,int,int,int,std::uint32_t);
     void build();
+    void place_sprite(lv_obj_t* parent, AppId app);
+    static void draw_sprite(lv_event_t* event);
     WatchController& controller_;
     lv_display_t* display_{};
-    const lv_image_dsc_t& sprite_descriptor_;
+    EmberPixels sprite_pixels_{};
+    std::optional<EmberFrame> last_frame_{};
     std::array<Binding,24> bindings_{};
     std::size_t binding_count_{};
     AppId last_app_{static_cast<AppId>(255)};

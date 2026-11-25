@@ -54,6 +54,7 @@ void Runtime::tick() {
     const auto now = clock_.monotonic_ms();
     if (events_.pending()==0 && next_delay_ms()>0) return;
     if (events_.pending() || now-last_mono_>=60'000-creature_.pending_ms) advance(now);
+    if (face_cue_ && now >= face_cue_until_) face_cue_.reset();
     events_.dispatch();
     if (scheduler_.next_deadline()<=now) {
         auto scheduled=power_.acquire(ServiceId::scheduler,mask(Resource::scheduled),now,1000);
@@ -72,6 +73,24 @@ void Runtime::tick() {
     }
     ++view_revision_;
 }
+void Runtime::show_face(CreatureFace face) {
+    face_cue_ = face;
+    face_cue_until_ = clock_.monotonic_ms() + 2500;
+}
+CreatureFace Runtime::face() const {
+    if (creature_.sleeping) return CreatureFace::resting;
+    if (thinking()) return CreatureFace::thinking;
+    const auto& needs = creature_.needs;
+    if (needs.energy <= 20) return CreatureFace::tired;
+    if (needs.hunger >= 75) return CreatureFace::hungry;
+    if (needs.health <= 35 || needs.stress >= 70) return CreatureFace::sad;
+    if (face_cue_ && clock_.monotonic_ms() < face_cue_until_) return *face_cue_;
+    if (environment_.charging) return CreatureFace::charging;
+    if (needs.happiness <= 35 || needs.affection <= 20 || needs.boredom >= 75) return CreatureFace::sad;
+    if (needs.happiness >= 80) return CreatureFace::happy;
+    if (needs.curiosity >= 75) return CreatureFace::curious;
+    return CreatureFace::calm;
+}
 void Runtime::handle(const Event& event) {
     const auto now = clock_.monotonic_ms();
     if (event.type == EventType::feed || event.type == EventType::rest || event.type == EventType::pet ||
@@ -83,10 +102,17 @@ void Runtime::handle(const Event& event) {
     else if (last_input_==now) wake_reason_.assign("interaction");
     if (CreatureEngine::interact(creature_, event.type)) {
         switch (event.type) {
-        case EventType::feed: message_.assign("Warm sparks. My favorite snack."); remember("My keeper fed me warm sparks."); break;
-        case EventType::rest: message_.assign(creature_.sleeping ? "Recharging my inner fire..." : "Awake. What shall we discover?"); remember(creature_.sleeping ? "I settled down to rest." : "I woke up with my keeper."); break;
-        case EventType::pet: message_.assign("A small kindness. I will remember."); remember("My keeper showed me affection."); break;
+        case EventType::feed:
+            show_face(CreatureFace::happy);
+            message_.assign("Warm sparks. My favorite snack."); remember("My keeper fed me warm sparks."); break;
+        case EventType::rest:
+            face_cue_.reset();
+            message_.assign(creature_.sleeping ? "Recharging my inner fire..." : "Awake. What shall we discover?"); remember(creature_.sleeping ? "I settled down to rest." : "I woke up with my keeper."); break;
+        case EventType::pet:
+            show_face(CreatureFace::happy);
+            message_.assign("A small kindness. I will remember."); remember("My keeper showed me affection."); break;
         case EventType::move:
+            show_face(CreatureFace::curious);
             environment_.steps += static_cast<std::uint32_t>(std::clamp<std::int32_t>(event.value, 0, 10000));
             message_.assign("Movement! There is a world out there."); remember("We moved and explored together."); break;
         default: break;
@@ -201,6 +227,7 @@ void Runtime::poll_cognition() {
         if (status) status = executor_.execute(response, creature_app_.capabilities());
         if (status) {
             if (!response.speech.view().empty()) message_ = executor_.speech();
+            if (const auto cue = executor_.face_cue()) show_face(*cue);
             for (std::size_t i = 0; i < response.action_count; ++i)
                 if (response.actions[i] == Capability::remember && response.schema_version==1) remember(response.speech.view().substr(0, 383), "model-proposal");
             for (std::size_t i=0;i<response.memory_count;++i) {
@@ -241,6 +268,7 @@ std::int64_t Runtime::next_delay_ms() const {
     auto due=std::min(power_.next_deadline(),scheduler_.next_deadline());
     if (cognition_.active()) due=std::min(due,next_cognitive_poll_);
     if (!suspended_) {
+        if (face_cue_) due = std::min(due, face_cue_until_);
         due=std::min(due,last_mono_+60'000-creature_.pending_ms);
         if (last_input_+60'000>now) due=std::min(due,last_input_+60'000);
         if (dirty_) due=std::min(due,last_save_+budget::save_interval_ms);

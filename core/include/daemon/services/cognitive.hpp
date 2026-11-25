@@ -1,6 +1,7 @@
 #pragma once
 #include "daemon/framework/application.hpp"
 #include "daemon/services/store.hpp"
+#include <optional>
 #include <span>
 
 namespace daemonos {
@@ -87,6 +88,8 @@ public:
     Status execute(const CognitiveResponse& response, Capabilities allowed);
     const Text<512>& speech() const { return speech_; }
     const Text<24>& animation() const { return animation_; }
+    std::optional<CreatureFace> face_cue() const { return face_cue_; }
 private: Text<512> speech_{}; Text<24> animation_{std::string_view{"idle"}};
+    std::optional<CreatureFace> face_cue_{};
 };
 }

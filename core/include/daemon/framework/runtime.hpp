@@ -6,6 +6,7 @@
 #include "daemon/services/registry.hpp"
 #include "daemon/services/scheduler.hpp"
 #include "daemon/services/resources.hpp"
+#include <optional>
 
 namespace daemonos {
 class Runtime {
@@ -23,6 +24,7 @@ public:
     AppId app() const { auto* app = navigation_.foreground(); return app ? app->id() : AppId::launcher; }
     PowerState power() const { return power_.state(); }
     bool display_awake() const { return power_.display_awake(); }
+    CreatureFace face() const;
     bool thinking() const { return cognition_.active(); }
     std::string_view message() const { return message_.view(); }
     std::string_view storage_status() const { return storage_status_.view(); }
@@ -54,6 +56,7 @@ private:
     void handle(const Event& event);
     void think();
     void poll_cognition();
+    void show_face(CreatureFace face);
     void remember(std::string_view content, std::string_view provenance = "local",double importance=0.5,double valence=0);
     void advance(std::int64_t now);
     void coordinate_power();
@@ -90,6 +93,8 @@ private:
     std::size_t pending_count_{}, lost_memories_{};
     std::int64_t last_mono_{}, last_input_{}, last_save_{}, last_checkpoint_{};
     std::int64_t next_cognitive_poll_{},sleep_started_{},last_sleep_ms_{};
+    std::optional<CreatureFace> face_cue_{};
+    std::int64_t face_cue_until_{};
     std::uint64_t view_revision_{};
     std::size_t simulation_updates_{},database_operations_{};
     Text<32> wake_reason_{std::string_view{"boot"}},cognitive_lifecycle_{std::string_view{"idle"}};

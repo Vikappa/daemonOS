@@ -22,6 +22,11 @@ display: use **Wake / button**, Space, or a watch interaction. Deep sleep here
 is simulated policy; the host still runs and can inject inputs. A real deep-sleep
 wake will reconstruct needs using RTC and reconnect BLE.
 
+On the launcher and creature screen, the familiar uses the same 13 x 12 LCD
+face. Petting and feeding show a grin, movement shows curiosity, and rest closes
+both eyes. Reactions last 2.5 simulated seconds. Sleep, active thinking and
+urgent needs take priority. The display stops refreshing while it sleeps.
+
 ```sh
 ./build/desktop/daemon_sim --data-dir /tmp/my-familiar
 ./build/desktop/daemon_sim --headless --frames 200 --epoch 1700000000 \
